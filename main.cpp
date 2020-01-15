@@ -56,38 +56,26 @@ int main() {
 
     WINDOW *rollWin = newwin(rollNums.size() + 2, 10, 7, 5);
     box(rollWin, 0, 0);
-    int choice, highlight = 0;
-    while (true) {
-        for (int i = 0; i < rollNums.size() + 1; i++) {
-            if (i == highlight) {
-                wattron(menuwin, A_REVERSE);
-            }
-            wrefresh(rollWin);
-            mvwaddstr(rollWin, i+1, 1, to_string(rollNums[i]).c_str());
-            wattroff(menuwin, A_REVERSE);
+    srand (time(NULL));
+    int lastY = 11; //minimum lastY
+    for (int i = 0; i < rollNums.size(); i += 2) {
+        unsigned int dieType = rollNums.at(i + 1), numLen = getNumLength(dieType);
+        lastY = 7 + (i * 2);
+        for (int j = 0; j < rollNums.at(i); j++) {
+            WINDOW *die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
+            box(die, 0, 0);
+            int roll = 1 + rand() % dieType;
+            mvwprintw(die, 1,1, "%d", roll);
+            wrefresh(die);
         }
-        
-        choice = wgetch(menuwin);
-        switch (choice) {
-        case KEY_UP:
-            highlight--;
-            highlight = (highlight == -1) ? 2 : highlight;
-            break;
-        case KEY_DOWN:
-            highlight++;
-            highlight = (highlight == 4) ? 0 : highlight;
-            break;    
-        default:
-            break;
-        }
-
-        if (choice == 10) {
-            break;
-        }
-        wrefresh(rollWin);
     }
+
+    WINDOW *whatDo = newwin(6, 40, lastY + 4, 5);
+    box(whatDo, 0, 0);
+    mvwprintw(whatDo, 1, 1, "What do?");
+    wrefresh(whatDo);
     
-    //getch();
+    getch();
     endwin();
     return 0;
 }

@@ -1,0 +1,33 @@
+WINDOW *rollWin = newwin(rollNums.size() + 2, 10, 7, 5);
+box(rollWin, 0, 0);
+int choice, highlight = 0;
+
+while (true) {
+        for (int i = 0; i < rollNums.size() + 1; i++) {
+            if (i == highlight) {
+                wattron(menuwin, A_REVERSE);
+            }
+            wrefresh(rollWin);
+            mvwaddstr(rollWin, i+1, 1, to_string(rollNums[i]).c_str());
+            wattroff(menuwin, A_REVERSE);
+        }
+        
+        choice = wgetch(menuwin);
+        switch (choice) {
+        case KEY_UP:
+            highlight--;
+            highlight = (highlight == -1) ? 2 : highlight;
+            break;
+        case KEY_DOWN:
+            highlight++;
+            highlight = (highlight == 4) ? 0 : highlight;
+            break;    
+        default:
+            break;
+        }
+
+        if (choice == 10) {
+            break;
+        }
+        wrefresh(rollWin);
+    }
