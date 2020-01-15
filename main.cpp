@@ -7,6 +7,7 @@ using namespace std;
 
 vector<int>& parseRoll(char* roll) {
     static vector<int> arr;
+    arr.clear();
     string s = roll;
     int num = 0;
     for (char c : s) {
@@ -37,45 +38,96 @@ int main() {
     initscr();
     cbreak();
 
-    int xMax = getmaxx(stdscr);
-    WINDOW *menuwin = newwin(4, xMax -12, 2, 5);
+    char lastRoll[40];
+    bool redo, done = false;
+    while (!done) {
+        int xMax = getmaxx(stdscr);
+        WINDOW *menuwin = newwin(4, xMax -12, 2, 5);
+        box(menuwin, 0,0);
+        refresh();
+        mvwprintw(menuwin, 1, 1, "Enter your roll:");
+        char roll[40];
+        if (redo) {
+            mvwprintw(menuwin, 2, 1, roll);
+        } else {
+            echo();
+            curs_set(1);
+            mvwgetstr(menuwin,2,1, roll);
+        }
+        wrefresh(menuwin);
 
-    box(menuwin, 0,0);
-    refresh();
-    mvwaddstr(menuwin, 1, 1, "Enter your roll:");
-    char roll[40];
-    mvwgetstr(menuwin,2,1, roll);
-    wrefresh(menuwin);
+        vector<int> rollNums = parseRoll(roll);
 
-    vector<int> rollNums = parseRoll(roll);
+        refresh();
+        keypad(menuwin, true);
+        curs_set(0);
+        noecho();
 
-    refresh();
-    keypad(menuwin, true);
-    curs_set(0);
-    noecho();
+        WINDOW *rollWin = newwin(rollNums.size() + 2, 10, 7, 5);
+        box(rollWin, 0, 0);
+        srand (time(NULL));
+        int lastY = 11; //minimum lastY
+        for (int i = 0; i < rollNums.size(); i += 2) {
+            int dieType = rollNums.at(i + 1), numLen = getNumLength(dieType);
+            lastY = 7 + (i * 2);
+            int j;
+            for (j = 0; j < rollNums.at(i); j++) {
+                WINDOW *die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
+                box(die, 0, 0);
+                int roll = 1 + rand() % dieType;
+                mvwprintw(die, 1,1, "%d", roll);
+                wrefresh(die);
+            }
+            mvprintw(lastY + 1,  (7 + (j * (numLen + 3))), "<-- %dD%d",rollNums.at(i),
+                     dieType);
+            refresh();
+        }
 
-    WINDOW *rollWin = newwin(rollNums.size() + 2, 10, 7, 5);
-    box(rollWin, 0, 0);
-    srand (time(NULL));
-    int lastY = 11; //minimum lastY
-    for (int i = 0; i < rollNums.size(); i += 2) {
-        unsigned int dieType = rollNums.at(i + 1), numLen = getNumLength(dieType);
-        lastY = 7 + (i * 2);
-        for (int j = 0; j < rollNums.at(i); j++) {
-            WINDOW *die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
-            box(die, 0, 0);
-            int roll = 1 + rand() % dieType;
-            mvwprintw(die, 1,1, "%d", roll);
-            wrefresh(die);
+        WINDOW *whatDo = newwin(6, 40, lastY + 4, 5);
+        box(whatDo, 0, 0);
+        wattron(whatDo, A_BOLD);
+        mvwprintw(whatDo, 1, 1, "What do?");
+        wattroff(whatDo, A_BOLD);
+        wrefresh(whatDo);
+        string choices[] = {"Roll again", "Reroll this roll", "Exit"};
+        int choice, highlight = redo ? 1 : 0;
+        while (true) {
+            for (int i = 0; i < 3; i++) {
+                if (i == highlight) {
+                    wattron(whatDo, A_REVERSE);
+                }
+                mvwprintw(whatDo, i + 2, 1, choices[i].c_str());
+                wrefresh(whatDo);
+                wattroff(whatDo, A_REVERSE);
+            }
+            choice = wgetch(menuwin); //not quite right should be from whatDo
+            switch (choice) {
+                case KEY_UP:
+                    highlight--;
+                    highlight = (highlight == -1) ? 2 : highlight;
+                    break;
+                case KEY_DOWN:
+                    highlight++;
+                    highlight = (highlight == 3) ? 0 : highlight;
+                    break;    
+                default:
+                    break;
+            }
+
+            if (choice == 10) {
+                redo = false;
+                rollNums.clear();
+                if (highlight == 2) { //exit
+                    done = true;
+                } else if (highlight == 1) { //redo the roll
+                    redo = true;
+                } 
+                clear();
+                refresh();
+                break;
+            }
         }
     }
-
-    WINDOW *whatDo = newwin(6, 40, lastY + 4, 5);
-    box(whatDo, 0, 0);
-    mvwprintw(whatDo, 1, 1, "What do?");
-    wrefresh(whatDo);
-    
-    getch();
     endwin();
     return 0;
 }
