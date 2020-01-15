@@ -2,6 +2,8 @@
 #include <ncurses.h>
 #include <regex>
 #include <vector>
+#include <unistd.h>
+#include <ctime>
 
 using namespace std;
 
@@ -34,12 +36,20 @@ int getNumLength(int n) {
     }
 }
 
+void logRolls(string rolls) {
+   time_t now = time(0);
+   string date = ctime(&now);
+   string command = "echo \"" + date + rolls +"\" >> rollHistory";
+   system(command.c_str());
+}
+
 int main() {
     initscr();
     cbreak();
 
     char lastRoll[40];
-    bool redo, done = false;
+    bool redo, done;
+    done = redo = false;
     while (!done) {
         int xMax = getmaxx(stdscr);
         WINDOW *menuwin = newwin(4, xMax -12, 2, 5);
@@ -67,21 +77,28 @@ int main() {
         box(rollWin, 0, 0);
         srand (time(NULL));
         int lastY = 11; //minimum lastY
+        string totalRoll = "";
         for (int i = 0; i < rollNums.size(); i += 2) {
             int dieType = rollNums.at(i + 1), numLen = getNumLength(dieType);
+            int reps = rollNums.at(i);
+            totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
             lastY = 7 + (i * 2);
             int j;
-            for (j = 0; j < rollNums.at(i); j++) {
+            for (j = 0; j < reps; j++) {
+                usleep(100000);
                 WINDOW *die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
                 box(die, 0, 0);
                 int roll = 1 + rand() % dieType;
+                totalRoll = totalRoll + to_string(roll) + " ";
                 mvwprintw(die, 1,1, "%d", roll);
                 wrefresh(die);
             }
-            mvprintw(lastY + 1,  (7 + (j * (numLen + 3))), "<-- %dD%d",rollNums.at(i),
+            totalRoll += "\n";
+            mvprintw(lastY + 1,  (7 + (j * (numLen + 3))), "<-- %dd%d", reps,
                      dieType);
             refresh();
         }
+        logRolls(totalRoll);
 
         WINDOW *whatDo = newwin(6, 40, lastY + 4, 5);
         box(whatDo, 0, 0);
