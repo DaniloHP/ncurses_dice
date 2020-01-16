@@ -23,25 +23,39 @@ void handleSettings(int& lastY) {
     WINDOW* setWin = newwin(numSettings + 2, 40, lastY + 4, 46);
     keypad(setWin, true);
     box(setWin, 0, 0);
-    string choices[] = {"Set roll delay (milliseconds)", "Clear roll log", "Exit settings"};
+    string choices[] = {"Set roll delay", "Clear roll log", "Exit settings"};
     while (true) {
         wclear(setWin); box(setWin, 0, 0);
         printMenu(highlight, choice, setWin, choices, numSettings, 1);
-        choice = wgetch(setWin);
-        switch (choice) {
-            case KEY_UP:
-                highlight--;
-                highlight = (highlight == -1) ? 2 : highlight;
-                break;
-            case KEY_DOWN:
-                highlight++;
-                highlight = (highlight == numSettings) ? 0 : highlight;
-                break;
-            default:
-                break;
-        }
-        if (choice == 10) {
-            if (highlight == 1) {
+        if (choice == 10) { //use pressed enter
+            if (highlight == 0) { //change roll delay
+                echo();
+                curs_set(1);
+                char newVal[10];
+                wmove(setWin, 1, 1);
+                wclrtoeol(setWin);
+                box(setWin, 0, 0);
+                mvwprintw(setWin, 1, 1, "Value (milliseconds):");
+                box(setWin, 0, 0);
+                mvwgetstr(setWin, 1, 23, newVal);
+                try {
+                    if (stol(newVal) >= 0) {
+                        delayMicroSec = stol(newVal) * 1000;
+                    } else {
+                        throw invalid_argument("");
+                    }
+                } catch (const invalid_argument& ia) {
+                    wmove(setWin, 1, 1);
+                    curs_set(0);
+                    wclrtoeol(setWin);
+                    wattron(setWin, A_BOLD);
+                    box(setWin, 0, 0);
+                    mvwprintw(setWin, 1, 1, "invalid input");
+                    wattroff(setWin, A_BOLD);
+                    wrefresh(setWin);
+                    usleep(1500000);
+                }
+            } else if (highlight == 1) { //clear log
                 mvwprintw(setWin, 2, 1, "Really clear log? y/[n]");
                 char real[3];
                 echo();
@@ -50,17 +64,7 @@ void handleSettings(int& lastY) {
                 if (strcmp(real, "y") == 0 || strcmp(real, "Y") == 0) {
                     system("> rollHistory");
                 }
-            } else if (highlight == 0) { //change roll delay
-                echo();
-                curs_set(1);
-                char newVal[10];
-                mvwprintw(setWin, 1, 30, ":");
-                mvwgetstr(setWin, 1, 32, newVal);
-                wrefresh(setWin);
-                if (stoi(newVal) >= 0) {
-                    delayMicroSec = stol(newVal) * 1000;
-                }
-            } else if (highlight == 2) {
+            } else if (highlight == 2) { //exit settings
                 break;
             }
             curs_set(0);
@@ -87,24 +91,10 @@ int main() {
         WINDOW *whatDo = setUpWhatDo(lastY);
         int choice, highlight = redo ? 1 : 0;
         while (true) {
-            sett = false;
+            redo = sett = false;
             string choices[] = {"Roll again", "Reroll this roll", "Settings", "Exit"};
             printMenu(highlight, choice, whatDo, choices, 4, 2);
-            choice = wgetch(whatDo); //not quite right should be from whatDo
-            switch (choice) {
-                case KEY_UP:
-                    highlight--;
-                    highlight = (highlight == -1) ? 3 : highlight;
-                    break;
-                case KEY_DOWN:
-                    highlight++;
-                    highlight = (highlight == 4) ? 0 : highlight;
-                    break;
-                default:
-                    break;
-            }
             if (choice == 10) {
-                redo = false;
                 rollNums.clear();
                 if (highlight == 3) { //exit
                     done = true;
@@ -213,7 +203,8 @@ WINDOW *setUpWhatDo(int &lastY) {
     return whatDo;
 }
 
-void printMenu(int &highlight, int &choice, WINDOW *win, string choices[], int size, short offset) {
+void printMenu(int &highlight, int &choice, WINDOW *win, string choices[], int size, 
+                short offset) {
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
@@ -222,9 +213,18 @@ void printMenu(int &highlight, int &choice, WINDOW *win, string choices[], int s
         wrefresh(win);
         wattroff(win, A_REVERSE);
     }
+    choice = wgetch(win);
+    switch (choice) {
+        case KEY_UP:
+            highlight--;
+            highlight = (highlight == -1) ? size - 1 : highlight;
+            break;
+        case KEY_DOWN:
+            highlight++;
+            highlight = (highlight == size) ? 0 : highlight;
+            break;
+    }
 }
-
-
 
 int getNumLength(int n) {
     if (n == 0) {
