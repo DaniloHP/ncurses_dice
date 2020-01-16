@@ -9,12 +9,73 @@
 using namespace std;
 
 vector<int>& parseRoll(char* roll);
-int getNumLength(int n);
 void logRolls(string* rolls);
 void printMenu(int &highlight, int &choice, WINDOW *whatDo);
 void doRolls(string& totalRoll, vector<int>& rollNums, int& lastY);
 void setupInWin(bool& redo, char* roll);
 WINDOW* setUpWhatDo(int& lastY);
+int getNumLength(int n);
+
+long delayMicroSec = 80000;
+void handleSettings(int& lastY) {
+    int highlight, choice;
+    highlight = choice = 0;
+    int numSettings = 4;
+    WINDOW* setWin = newwin(numSettings + 2, 40, lastY + 4, 46);
+    keypad(setWin, true);
+    box(setWin, 0, 0);
+    string choices[] = {"Set roll delay (milliseconds)", "Clear logs" ,"Save and exit", "Exit without saving"};
+    while (true) {
+        for (int i = 0; i < numSettings; i++) {
+            if (i == highlight) {
+                wattron(setWin, A_REVERSE);
+            }
+            mvwprintw(setWin, i + 1, 1, choices[i].c_str());
+            wrefresh(setWin);
+            wattroff(setWin, A_REVERSE);
+        }
+        choice = wgetch(setWin);
+            switch (choice) {
+                case KEY_UP:
+                    highlight--;
+                    highlight = (highlight == -1) ? 2 : highlight;
+                    break;
+                case KEY_DOWN:
+                    highlight++;
+                    highlight = (highlight == numSettings) ? 0 : highlight;
+                    break;
+                default:
+                    break;
+            }
+        if (choice == 10) {
+            if (highlight == 2) { //save & exit
+            } else if (highlight == 1) { //exit
+                mvwprintw(setWin, 2, 1, "Really clear logs? y/[n]");
+                char real[3];
+                echo();
+                curs_set(1);
+                mvwgetstr(setWin, 2, 26, real);
+                if (strcmp(real, "y") == 0 || strcmp(real, "Y") == 0) {
+                    system("> rollHistory");
+                }
+            } else if (highlight == 0) { //change roll delay
+                echo();
+                curs_set(1);
+                char newVal[10];
+                mvwprintw(setWin, 1, 30, ":");
+                mvwgetstr(setWin, 1, 32, newVal);
+                wrefresh(setWin);
+                if (stoi(newVal) > 0) {
+                    delayMicroSec = stol(newVal) * 1000;
+                }
+            }
+            curs_set(0);
+            noecho();
+            delwin(setWin);
+            break;
+        } 
+    }
+}
 
 int main() {
     initscr();
@@ -41,7 +102,7 @@ int main() {
                     break;
                 case KEY_DOWN:
                     highlight++;
-                    highlight = (highlight == 3) ? 0 : highlight;
+                    highlight = (highlight == 4) ? 0 : highlight;
                     break;
                 default:
                     break;
@@ -49,8 +110,10 @@ int main() {
             if (choice == 10) {
                 redo = false;
                 rollNums.clear();
-                if (highlight == 2) { //exit
+                if (highlight == 3) { //exit
                     done = true;
+                } else if (highlight == 2) {
+                 handleSettings(lastY);
                 } else if (highlight == 1) { //redo the roll
                     redo = true;
                 }
@@ -112,7 +175,7 @@ void doRolls(string &totalRoll, vector<int> &rollNums, int &lastY) {
         lastY = 7 + (i * 2);
         int j;
         for (j = 0; j < reps; j++) {
-            //usleep(80000);
+            usleep(delayMicroSec);
             WINDOW *die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
             //state of the art random int generator
@@ -140,7 +203,7 @@ void logRolls(string* rolls) {
 }
 
 WINDOW *setUpWhatDo(int &lastY) {
-    WINDOW* whatDo = newwin(6, 40, lastY + 4, 5);
+    WINDOW* whatDo = newwin(7, 40, lastY + 4, 5);
     keypad(whatDo, true);
     box(whatDo, 0, 0);
     wattron(whatDo, A_BOLD);
@@ -151,8 +214,8 @@ WINDOW *setUpWhatDo(int &lastY) {
 }
 
 void printMenu(int &highlight, int &choice, WINDOW *whatDo) {
-    string choices[] = {"Roll again", "Reroll this roll", "Exit"};
-    for (int i = 0; i < 3; i++) {
+    string choices[] = {"Roll again", "Reroll this roll", "Settings", "Exit"};
+    for (int i = 0; i < 4; i++) {
         if (i == highlight) {
             wattron(whatDo, A_REVERSE);
         }
@@ -161,6 +224,8 @@ void printMenu(int &highlight, int &choice, WINDOW *whatDo) {
         wattroff(whatDo, A_REVERSE);
     }
 }
+
+
 
 int getNumLength(int n) {
     if (n == 0) {
