@@ -100,9 +100,13 @@ vector<int>& parseRoll(char* roll) {
 }
 
 void doRolls(string& totalRoll, vector<int>& rollNums, int& lastY) {
+    
+    int sum, totalSum, origReps;
+    totalSum = 0;
     for (int i = 0; i < rollNums.size(); i += 2) {
+        sum = 0;
         int dieType = rollNums.at(i + 1), numLen = getNumLength(dieType);
-        int reps = rollNums.at(i);
+        int reps = origReps = rollNums.at(i);
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
         lastY = 7 + (i * 2);
         int j;
@@ -115,17 +119,23 @@ void doRolls(string& totalRoll, vector<int>& rollNums, int& lastY) {
             mt19937 mt(rd());
             uniform_int_distribution<int> dist(1, dieType);
             int rollVal = dist(mt);
+            sum += rollVal;
             totalRoll += to_string(rollVal) + " ";
             mvwprintw(die, 1, 1, "%d", rollVal);
             wrefresh(die);
             delwin(die);
             if (aces && rollVal == dieType && dieType != 1) reps++;
         }
+        totalSum += sum;
         totalRoll += "\n";
         mvprintw(lastY + 1,  (7 + (j * (numLen + 3))), "<-- %dd%d", reps,
                   dieType);
+        mvprintw(lastY, (7 + (j * (numLen + 3))), "Sum: %d | Aces: %d", sum, 
+                 (reps - origReps));
         refresh();
     }
+    mvprintw(lastY + 3, 5, "Sum of all rolls: %d", totalSum);
+    refresh();
 }
 
 void logRolls(string* rolls) {
@@ -152,7 +162,7 @@ void printMenu(int& highlight, int& choice, WINDOW* win, string choices[], int s
         if (i == highlight) {
             wattron(win, A_REVERSE);
         }
-        mvwprintw(win, i+offset, 1, choices[i].c_str());
+        mvwprintw(win, i + offset, 1, choices[i].c_str());
         wrefresh(win);
         wattroff(win, A_REVERSE);
     }
