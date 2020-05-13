@@ -14,14 +14,14 @@ void logRolls(string*);
 void printMenu(int&, int&, WINDOW*, const char**, int, short);
 void doRolls(string&, vector<int>&, int&);
 int getRoll(int);
-void setupInputWin(bool redo, char *roll);
+void setupInputWin(WINDOW *&inWin, bool redo, char *roll);
 void setUpWhatDo(int lastY, WINDOW *&whatDo);
 void handleSettings(int&);
 int getNumLength(int);
 bool aces = true;
 
 int main() {
-    WINDOW *whatDo = nullptr;
+    WINDOW *whatDo = nullptr, *inputWin = nullptr;
     WINDOW *mainScreen = initscr(); //most things allocated by this can't be freed
     cbreak();
     bool redo, done, sett; 
@@ -29,7 +29,7 @@ int main() {
     char roll[40];
     vector<int> rollNums;
     while (!done) {
-        setupInputWin(redo, roll);
+        setupInputWin(inputWin, redo, roll);
         rollNums = parseRoll(roll);
         string totalRoll;
         int lastY = 11;
@@ -62,6 +62,7 @@ int main() {
             }
         }
     }
+    delwin(inputWin);
     delwin(whatDo);
     delwin(mainScreen);
     endwin();
@@ -69,26 +70,23 @@ int main() {
     return 0;
 }
 
-void setupInputWin(bool redo, char* roll) {
+void setupInputWin(WINDOW *&inWin, bool redo, char *roll) {
     int xMax = getmaxx(stdscr);
-    WINDOW* inputWin = newwin(4, xMax - 12, 2, 5);
-    box(inputWin, 0, 0);
+    if (inWin == nullptr) {
+        inWin = newwin(4, xMax - 12, 2, 5);
+        box(inWin, 0, 0);
+    }
     refresh();
-    mvwprintw(inputWin, 1, 1, "Enter your roll:");
+    mvwprintw(inWin, 1, 1, "Enter your roll:");
     if (redo) {
-        mvwprintw(inputWin, 2, 1, roll);
+        mvwprintw(inWin, 2, 1, roll);
     } else {
         echo();
         curs_set(1);
-        mvwgetstr(inputWin, 2, 1, roll);
+        mvwgetstr(inWin, 2, 1, roll);
     }
-    delwin(inputWin);
     curs_set(0);
     noecho();
-}
-
-void collectInput(bool redo, char *roll) {
-    
 }
 
 void setUpWhatDo(int lastY, WINDOW *&whatDo) {
