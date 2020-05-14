@@ -6,48 +6,48 @@
 #include <random>
 #include <iostream>
 
+#define ENTER 10
+#define DEFAULT_SLEEP 80000
+
 using namespace std;
-long delayMicroSec = 80000;
+long delayMicroSec = DEFAULT_SLEEP;
 
 vector<int>& parseRoll(char*);
-void logRolls(string*);
 void printMenu(int&, int&, WINDOW*, const char**, int, short);
-void doRolls(string&, vector<int>&, int&);
+void doRolls(vector<int> &rollNums, int &lastY);
 int getRoll(int);
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll);
 void setUpWhatDo(int lastY, WINDOW *&whatDo);
-void handleSettings(int&);
+void handleSettings(int lastY);
+void displayInputWin(WINDOW *inWin, char *roll);
 int getNumLength(int);
 bool aces = true;
 
 int main() {
-    WINDOW *whatDo = nullptr, *inputWin = nullptr;
-    WINDOW *mainScreen = initscr(); //most things allocated by this can't be freed
-    cbreak();
-    bool redo, done, sett; 
-    done = redo = false;
+    WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr(); 
     char roll[40];
+    int lastY;
     vector<int> rollNums;
+    bool redo, done, sett;
+    done = redo = false;
+    cbreak();
     while (!done) {
         setupInputWin(inputWin, redo, roll);
-        rollNums = parseRoll(roll);
-        string totalRoll;
-        int lastY = 11;
-        doRolls(totalRoll, rollNums, lastY);
-        logRolls(&totalRoll);
-        totalRoll.erase(0);
-        setUpWhatDo(lastY, whatDo);
+        lastY = 11;
+        doRolls(parseRoll(roll), lastY);
+        setUpWhatDo(lastY, whatDo); //good i think
         int choice, highlight = redo ? 1 : 0;
         while (true) {
-            redo = sett = false;
-            const char *choices[] = {(const char*)"Roll again", (const char*)"Reroll this roll", 
-                                     (const char*)"Settings", (const char*)"Exit"};
+            redo = sett = false; //git
+            const char *choices[] = {
+                    (const char*)"Roll again", (const char*)"Reroll this roll", 
+                    (const char*)"Settings", (const char*)"Exit"};
             printMenu(highlight, choice, whatDo, choices, 4, 2);
-            if (choice == 10) {
-                rollNums.clear();
+            displayInputWin(inputWin, roll);
+            if (choice == ENTER) { //pressed enter
                 if (highlight == 3) { //exit
                     done = true;
-                } else if (highlight == 2) {
+                } else if (highlight == 2) { //settings
                     handleSettings(lastY);
                     sett = true;
                     refresh();
@@ -66,7 +66,7 @@ int main() {
     delwin(whatDo);
     delwin(mainScreen);
     endwin();
-    vector<int>().swap(rollNums);
+    vector<int>().swap(rollNums); //dealloc
     return 0;
 }
 
@@ -74,19 +74,28 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll) {
     int xMax = getmaxx(stdscr);
     if (inWin == nullptr) {
         inWin = newwin(4, xMax - 12, 2, 5);
-        box(inWin, 0, 0);
     }
-    refresh();
+    wclear(inWin);
+    box(inWin, 0, 0);
     mvwprintw(inWin, 1, 1, "Enter your roll:");
     if (redo) {
         mvwprintw(inWin, 2, 1, roll);
     } else {
         echo();
         curs_set(1);
-        mvwgetstr(inWin, 2, 1, roll);
+        mvwgetnstr(inWin, 2, 1, roll, 40);
     }
     curs_set(0);
     noecho();
+}
+
+void displayInputWin(WINDOW *inWin, char *roll) {
+    box(inWin, 0, 0);
+    mvwprintw(inWin, 1, 1, "Enter your roll:");
+    mvwprintw(inWin, 2, 1, roll);
+    curs_set(0);
+    noecho();
+    wrefresh(inWin);
 }
 
 void setUpWhatDo(int lastY, WINDOW *&whatDo) {
@@ -128,7 +137,7 @@ void printMenu(int& highlight, int& choice, WINDOW* win, const char **choices, i
     }
 }
 
-void handleSettings(int& lastY) {
+void handleSettings(const int lastY) {
     int highlight, choice;
     highlight = choice = 0;
     const char *choices[] = {
@@ -152,14 +161,10 @@ void handleSettings(int& lastY) {
                 box(setWin, 0, 0);
                 mvwprintw(setWin, 1, 1, "Value (milliseconds):");
                 box(setWin, 0, 0);
-                mvwgetstr(setWin, 1, 23, newVal);
-                try { //TODO why is this a try catch
-                    if (stol(newVal) >= 0) {
-                        delayMicroSec = stol(newVal) * 1000;
-                    } else {
-                        throw invalid_argument("");
-                    }
-                } catch (const invalid_argument& ia) {
+                mvwgetnstr(setWin, 1, 23, newVal, 10);
+                if (stol(newVal) >= 0) {
+                    delayMicroSec = stol(newVal) * 1000;
+                } else {
                     wmove(setWin, 1, 1);
                     curs_set(0);
                     wclrtoeol(setWin);
@@ -175,11 +180,11 @@ void handleSettings(int& lastY) {
                 char real[3];
                 echo();
                 curs_set(1);
-                mvwgetstr(setWin, 2, 26, real);
+                mvwgetnstr(setWin, 2, 26, real, 3);
                 if (strcmp(real, "y") == 0 || strcmp(real, "Y") == 0) {
                     system("> rollHistory");
                 }
-            } else if (highlight == 2) {
+            } else if (highlight == 2) { //toggle aces
                 aces = !aces;
                 wmove(setWin, 3, 1);
                 wclrtoeol(setWin);
@@ -208,21 +213,30 @@ int getNumLength(int n) {
     }
 }
 
-void doRolls(string& totalRoll, vector<int>& rollNums, int& lastY) {
-    int sum, totalSum, origReps;
+void logRolls(const string& rolls) {
+    time_t now = time(nullptr);
+    string date = ctime(&now);
+    string command = "echo \"" + date + rolls +"\" >> rollHistory";
+    system(command.c_str());
+}
+
+void doRolls(vector<int> &rollNums, int &lastY) {
+    int sum, totalSum, origReps, dieType, reps, numLen, rollVal, i, j;
+    WINDOW *die, *statsWin, *totalWin;
+    string totalRoll;
     totalSum = 0;
-    for (int i = 0; i < rollNums.size(); i += 2) {
+    for (i = 0; i < rollNums.size(); i += 2) {
         sum = 0;
-        int dieType = rollNums.at(i + 1), numLen = getNumLength(dieType);
-        int reps = origReps = rollNums.at(i);
+        dieType = rollNums.at(i + 1);
+        numLen = getNumLength(dieType);
+        reps = origReps = rollNums.at(i);
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
         lastY = 7 + (i * 2);
-        int j;
         for (j = 0; j < reps; j++) {
             usleep(delayMicroSec);
-            WINDOW* die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
+            die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            int rollVal = getRoll(dieType);
+            rollVal = getRoll(dieType);
             sum += rollVal;
             totalRoll += to_string(rollVal) + " ";
             mvwprintw(die, 1, 1, "%d", rollVal);
@@ -232,14 +246,21 @@ void doRolls(string& totalRoll, vector<int>& rollNums, int& lastY) {
         }
         totalSum += sum;
         totalRoll += "\n";
-        mvprintw(lastY + 1,  (7 + (j * (numLen + 3))), "<-- %dd%d", reps,
-                 dieType);
-        mvprintw(lastY, (7 + (j * (numLen + 3))), "Sum: %d | %s ace(s)", sum,
+        statsWin = newwin(2, 32, lastY, (7 + (j * (numLen + 3))));
+        mvwprintw(statsWin, 0, 0, "Sum: %d | %s ace(s)", sum,
                  aces ? to_string(reps - origReps).c_str() : "No");
-        refresh();
+        mvwprintw(statsWin, 1, 0, "<-- %dd%d", reps,
+                 dieType);
+        wrefresh(statsWin);
+        delwin(statsWin); //unfortunately these seem to have to be in windows
     }
-    mvprintw(lastY + 3, 5, "Sum of all rolls: %d", totalSum);
-    refresh();
+    rollNums.clear();
+    totalWin = newwin(1, 32, lastY + 3, 5);
+    mvwprintw(totalWin, 0, 0, "Sum of all rolls: %d", totalSum);
+    wrefresh(totalWin);
+    delwin(totalWin);
+    logRolls(totalRoll);
+    totalRoll.erase(0);
 }
 
 vector<int>& parseRoll(char* roll) {
@@ -261,13 +282,6 @@ vector<int>& parseRoll(char* roll) {
         arr.push_back(num);
     }
     return arr;
-}
-
-void logRolls(string* rolls) {
-    time_t now = time(nullptr);
-    string date = ctime(&now);
-    string command = "echo \"" + date + *rolls +"\" >> rollHistory";
-    system(command.c_str());
 }
 
 int getRoll(int dieType) {
