@@ -5,4 +5,4 @@ dice_controller.o:
 dice_view.o:
 	g++ -c -g -ltinfo -lncurses dice_view.cpp
 clean:
-	rm *.o *.gch
+	rm *.o 

@@ -10,8 +10,12 @@
 class dice_controller {
 public:
     int get_roll(int);
-    std::vector<int>& parse_roll(char*);
+    std::vector<int> *parse_roll(char*);
     void log_rolls(const std::string& rolls);
+    void clear_log();
+
+private:
+    const char* log_name = "roll_history.txt";
 };
 
 

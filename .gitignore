@@ -2,6 +2,6 @@
 cmake-build-debug/
 .idea/
 CMakeLists.txt
-rollHistory
+roll_history.txt
 *.o
 *.gch
