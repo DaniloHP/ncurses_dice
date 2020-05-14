@@ -1,7 +1,8 @@
 *.out
 cmake-build-debug/
 .idea/
-CMakeLists.txt
-roll_history.txt
+RollHistory.txt
 *.o
 *.gch
+bin/
+build/

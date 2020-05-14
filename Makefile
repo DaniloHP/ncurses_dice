@@ -1,8 +1,8 @@
-a.out: dice_controller.o dice_view.o
-	g++ -g -ltinfo -lncurses dice_controller.o dice_view.o
-dice_controller.o: dice_controller.cpp dice_controller.h
-	g++ -c -g dice_controller.cpp
-dice_view.o: dice_view.cpp dice_controller.h
-	g++ -c -g -ltinfo -lncurses dice_view.cpp
+dice: build/DiceController.o build/DiceView.o
+	g++ -g -ltinfo -lncurses -o bin/dice build/DiceView.o build/DiceController.o
+build/DiceController.o: src/controller/DiceController.cpp include/DiceController.h
+	g++ -c -g -o build/DiceController.o src/controller/DiceController.cpp
+build/DiceView.o: src/view/DiceView.cpp include/DiceController.h
+	g++ -c -g -ltinfo -lncurses -o build/DiceView.o src/view/DiceView.cpp
 clean:
-	rm *.o 
+	rm build/*
