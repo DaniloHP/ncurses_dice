@@ -5,26 +5,28 @@
 #include <ctime>
 #include <random>
 #include <iostream>
-
+#include "dice_controller.h"
 #define ENTER 10
 #define DEFAULT_SLEEP 80000
 
 using namespace std;
 long delay_micro_sec = DEFAULT_SLEEP;
 
-vector<int>& parse_roll(char*);
+//vector<int>& parse_roll(char*);
 void print_menu(int &highlight, int &choice, WINDOW *win, const char **choices, int size, short offset);
-void do_rolls(vector<int> &roll_nums, int &last_y);
-int get_roll(int);
+void do_rolls(vector<int> &roll_nums, int &last_y, dice_controller dc);
+//int get_roll(int);
 void setup_input_win(WINDOW *&in_win, bool redo, char *roll);
 void set_up_what_do_win(int last_y, WINDOW *&what_do);
 void handle_settings(int lastY);
 void display_input_win(WINDOW *in_win, char *roll);
 int get_num_length(int);
+
 bool aces = true;
 
 int main() {
-    WINDOW *what_do = nullptr, *input_win = nullptr, *main_screen = initscr(); 
+    WINDOW *what_do = nullptr, *input_win = nullptr, *main_screen = initscr();
+    dice_controller dc;
     char roll[40];
     int last_y, choice, highlight;
     vector<int> roll_nums;
@@ -34,7 +36,7 @@ int main() {
     while (!done) {
         setup_input_win(input_win, redo, roll);
         last_y = 11;
-        do_rolls(parse_roll(roll), last_y);
+        do_rolls(dc.parse_roll(roll), last_y, dice_controller());
         set_up_what_do_win(last_y, what_do); //good i think
         highlight = redo ? 1 : 0;
         while (true) {
@@ -70,7 +72,7 @@ int main() {
     return 0;
 }
 
-void setup_input_win(WINDOW *&in_win, bool redo, char *roll) {
+void setup_input_win(WINDOW *&in_win, bool redo, char *roll) { //view
     int x_max = getmaxx(stdscr);
     if (in_win == nullptr) {
         in_win = newwin(4, x_max - 12, 2, 5);
@@ -89,7 +91,7 @@ void setup_input_win(WINDOW *&in_win, bool redo, char *roll) {
     noecho();
 }
 
-void display_input_win(WINDOW *in_win, char *roll) {
+void display_input_win(WINDOW *in_win, char *roll) { //view
     box(in_win, 0, 0);
     mvwprintw(in_win, 1, 1, "Enter your roll:");
     mvwprintw(in_win, 2, 1, roll);
@@ -97,7 +99,7 @@ void display_input_win(WINDOW *in_win, char *roll) {
     noecho();
 } //wrefresh does not work in here, maybe because double pointer or something?
 
-void set_up_what_do_win(int last_y, WINDOW *&what_do) {
+void set_up_what_do_win(int last_y, WINDOW *&what_do) { //view
     if (what_do == nullptr) {
         what_do = newwin(7, 40, last_y + 4, 5);
     } else {
@@ -112,7 +114,7 @@ void set_up_what_do_win(int last_y, WINDOW *&what_do) {
 }
 
 void print_menu(int& highlight, int& choice, WINDOW* win, const char **choices, int size,
-                short offset) {
+                short offset) { //view
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
@@ -136,7 +138,7 @@ void print_menu(int& highlight, int& choice, WINDOW* win, const char **choices, 
     }
 }
 
-void handle_settings(const int lastY) {
+void handle_settings(const int lastY) { //view
     int highlight, choice;
     highlight = choice = 0;
     const char *choices[] = {
@@ -209,7 +211,7 @@ void handle_settings(const int lastY) {
     delwin(set_win);
 }
 
-int get_num_length(int n) {
+int get_num_length(int n) { //view, actually
     if (n == 0) {
         return 0;
     } else {
@@ -217,14 +219,7 @@ int get_num_length(int n) {
     }
 }
 
-void log_rolls(const string& rolls) {
-    time_t now = time(nullptr);
-    string date = ctime(&now);
-    string command = "echo \"" + date + rolls +"\" >> rollHistory";
-    system(command.c_str());
-}
-
-void do_rolls(vector<int> &roll_nums, int &last_y) {
+void do_rolls(vector<int> &roll_nums, int &last_y, dice_controller dc) { //view
     int sum, totalSum, origReps, dieType, reps, numLen, rollVal, i, j;
     WINDOW *die, *stats_win, *total_win;
     string total_roll;
@@ -240,7 +235,7 @@ void do_rolls(vector<int> &roll_nums, int &last_y) {
             usleep(delay_micro_sec);
             die = newwin(3, numLen + 2, last_y, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            rollVal = get_roll(dieType);
+            rollVal = dc.get_roll(dieType);
             sum += rollVal;
             total_roll += to_string(rollVal) + " ";
             mvwprintw(die, 1, 1, "%d", rollVal);
@@ -263,34 +258,6 @@ void do_rolls(vector<int> &roll_nums, int &last_y) {
     mvwprintw(total_win, 0, 0, "Sum of all rolls: %d", totalSum);
     wrefresh(total_win);
     delwin(total_win);
-    log_rolls(total_roll);
+    dc.log_rolls(total_roll);
     total_roll.erase(0);
-}
-
-vector<int>& parse_roll(char* roll) {
-    static vector<int> arr;
-    arr.clear();
-    string s = roll;
-    int num = 0;
-    for (char c : s) {
-        if ((c == 'd' || c == 'D') && num == 0) {
-            arr.push_back(1);
-        } else if (c > 47 && c < 58) {
-            num = num * 10 + (c - 48);
-        } else if (num > 0) {
-            arr.push_back(num);
-            num = 0;
-        }
-    }
-    if (num > 0) {
-        arr.push_back(num);
-    }
-    return arr;
-}
-
-int get_roll(int die_type) {
-    random_device rd;
-    mt19937 mt(rd());
-    uniform_int_distribution<int> dist(1, die_type);
-    return dist(mt);
 }
