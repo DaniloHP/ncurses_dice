@@ -1,2 +1,2 @@
 output: a.out
-	g++ -ltinfo -lncurses main.cpp
+	g++ -g -ltinfo -lncurses main.cpp

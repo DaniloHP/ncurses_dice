@@ -10,7 +10,7 @@
 #define DEFAULT_SLEEP 80000
 
 using namespace std;
-long delayMicroSec = DEFAULT_SLEEP;
+long delay_micro_sec = DEFAULT_SLEEP;
 
 vector<int>& parse_roll(char*);
 void print_menu(int &highlight, int &choice, WINDOW *win, const char **choices, int size, short offset);
@@ -49,7 +49,6 @@ int main() {
                 } else if (highlight == 2) { //settings
                     handle_settings(last_y);
                     sett = true;
-                    refresh();
                 } else if (highlight == 1) { //redo the roll
                     redo = true;
                 }
@@ -144,54 +143,59 @@ void handle_settings(const int lastY) {
             (const char *)"Set roll delay", (const char *)"Clear roll log", 
             (const char *)"Toggle aces", (const char *)"Exit settings"};
     int num_settings = 4;
-    WINDOW* setWin = newwin(num_settings + 2, 40, lastY + 4, 46);
-    keypad(setWin, true);
-    box(setWin, 0, 0);
+    WINDOW* set_win = newwin(num_settings + 2, 40, lastY + 4, 46);
+    keypad(set_win, true);
+    box(set_win, 0, 0);
     while (true) {
-        wclear(setWin); 
-        box(setWin, 0, 0);
-        print_menu(highlight, choice, setWin, choices, num_settings, 1);
+        wclear(set_win);
+        box(set_win, 0, 0);
+        print_menu(highlight, choice, set_win, choices, num_settings, 1);
         if (choice == 10) { //use pressed enter
             if (highlight == 0) { //change roll delay
                 echo();
                 curs_set(1);
-                char newVal[10];
-                wmove(setWin, 1, 1);
-                wclrtoeol(setWin);
-                box(setWin, 0, 0);
-                mvwprintw(setWin, 1, 1, "Value (milliseconds):");
-                box(setWin, 0, 0);
-                mvwgetnstr(setWin, 1, 23, newVal, 10);
-                if (stol(newVal) >= 0) {
-                    delayMicroSec = stol(newVal) * 1000;
-                } else {
-                    wmove(setWin, 1, 1);
+                char new_val[10];
+                wmove(set_win, 1, 1);
+                wclrtoeol(set_win);
+                box(set_win, 0, 0);
+                mvwprintw(set_win, 1, 1, "Value (milliseconds):");
+                box(set_win, 0, 0);
+                mvwgetnstr(set_win, 1, 23, new_val, 10);
+                try {
+                    long milli_sec = stol(new_val);
+                    if (milli_sec >= 0) {
+                        delay_micro_sec = milli_sec * 1000;
+                    } else {
+                        throw invalid_argument("No values less than 0.");
+                    }
+                } catch (invalid_argument &e) {
+                    wmove(set_win, 1, 1);
                     curs_set(0);
-                    wclrtoeol(setWin);
-                    wattron(setWin, A_BOLD);
-                    box(setWin, 0, 0);
-                    mvwprintw(setWin, 1, 1, "invalid input");
-                    wattroff(setWin, A_BOLD);
-                    wrefresh(setWin);
+                    wclrtoeol(set_win);
+                    wattron(set_win, A_BOLD);
+                    box(set_win, 0, 0);
+                    mvwprintw(set_win, 1, 1, "invalid input");
+                    wattroff(set_win, A_BOLD);
+                    wrefresh(set_win);
                     usleep(1500000);
                 }
             } else if (highlight == 1) { //clear log
-                mvwprintw(setWin, 2, 1, "Really clear log? y/[n]");
+                mvwprintw(set_win, 2, 1, "Really clear log? y/[n]");
                 char real[3];
                 echo();
                 curs_set(1);
-                mvwgetnstr(setWin, 2, 26, real, 3);
+                mvwgetnstr(set_win, 2, 26, real, 3);
                 if (strcmp(real, "y") == 0 || strcmp(real, "Y") == 0) {
                     system("> rollHistory");
                 }
             } else if (highlight == 2) { //toggle aces
                 aces = !aces;
-                wmove(setWin, 3, 1);
-                wclrtoeol(setWin);
-                box(setWin, 0, 0);
-                mvwprintw(setWin, 3, 1, "Aces now %s", (aces) ? "on" : "off");
-                box(setWin, 0, 0);
-                wrefresh(setWin);
+                wmove(set_win, 3, 1);
+                wclrtoeol(set_win);
+                box(set_win, 0, 0);
+                mvwprintw(set_win, 3, 1, "Aces now %s", (aces) ? "on" : "off");
+                box(set_win, 0, 0);
+                wrefresh(set_win);
                 usleep(1500000);
             } else if (highlight == num_settings - 1) { //exit settings
                 break;
@@ -200,9 +204,9 @@ void handle_settings(const int lastY) {
             noecho();
         } 
     }
-    wclear(setWin);
-    wrefresh(setWin);
-    delwin(setWin);
+    wclear(set_win);
+    wrefresh(set_win);
+    delwin(set_win);
 }
 
 int get_num_length(int n) {
@@ -233,7 +237,7 @@ void do_rolls(vector<int> &roll_nums, int &last_y) {
         total_roll += to_string(reps) + "d" + to_string(dieType) + ": ";
         last_y = 7 + (i * 2);
         for (j = 0; j < reps; j++) {
-            usleep(delayMicroSec);
+            usleep(delay_micro_sec);
             die = newwin(3, numLen + 2, last_y, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
             rollVal = get_roll(dieType);
