@@ -43,7 +43,6 @@ int main() {
                     (const char*)"Roll again", (const char*)"Reroll this roll", 
                     (const char*)"Settings", (const char*)"Exit"};
             printMenu(highlight, choice, whatDo, choices, 4, 2);
-            displayInputWin(inputWin, roll);
             if (choice == ENTER) { //pressed enter
                 if (highlight == 3) { //exit
                     done = true;
@@ -57,6 +56,8 @@ int main() {
                 if (!sett) {
                     clear();
                     refresh();
+                    displayInputWin(inputWin, roll);
+                    wrefresh(inputWin);
                     break;
                 }
             }
@@ -95,8 +96,7 @@ void displayInputWin(WINDOW *inWin, char *roll) {
     mvwprintw(inWin, 2, 1, roll);
     curs_set(0);
     noecho();
-    wrefresh(inWin);
-}
+} //wrefresh does not work in here, maybe because double pointer or something?
 
 void setUpWhatDo(int lastY, WINDOW *&whatDo) {
     if (whatDo == nullptr) {
