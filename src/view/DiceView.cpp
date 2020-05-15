@@ -24,6 +24,10 @@ void handleToggleAces(WINDOW *setWin, DiceController &controller);
 void freeAllRolls(vector<DiceRoll *> *allRolls);
 void handleSavedRolls(int lastY, DiceController &controller);
 
+void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller);
+
+void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
+
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
     DiceController controller;
@@ -159,7 +163,7 @@ void handleSavedRolls(int lastY, DiceController &controller) {
             (const char *)"Add a new roll", (const char *)"Update a roll",
             (const char *)"Remove a roll", (const char *)"Exit saved rolls"};
     int numChoices = 4;
-    WINDOW* rollsWin = newwin(numChoices + 2, 40, lastY + 4, 46);
+    WINDOW* rollsWin = newwin(numChoices + 2, 46, lastY + 4, 46);
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
     while (true) {
@@ -167,14 +171,13 @@ void handleSavedRolls(int lastY, DiceController &controller) {
         box(rollsWin, 0, 0);
         printMenu(highlight, choice, rollsWin, choices, numChoices, 1);
         if (choice == 10) { //use pressed enter
-//            if (highlight == 0) { //change roll delay
-//                handleChangeRollDelay(rollsWin, controller);
-//            } else if (highlight == 1) { //clear log
-//                handleClearLog(rollsWin, controller);
-//            } else if (highlight == 2) { //toggle aces
-//                handleToggleAces(rollsWin, controller);
-//            }
-            if (highlight == numChoices - 1) { //exit settings
+            if (highlight == 0) { //new roll
+                handleNewOrUpdateRoll(lastY + 12, controller, false);
+            } else if (highlight == 1) { //update roll
+                handleNewOrUpdateRoll(lastY + 12, controller, true);
+            } else if (highlight == 2) { //remove roll
+                handleRemoveRoll(rollsWin, controller);
+            } if (highlight == numChoices - 1) { //exit saved rolls
                 break;
             }
             curs_set(0);
@@ -184,6 +187,51 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     wclear(rollsWin);
     wrefresh(rollsWin);
     delwin(rollsWin);
+}
+
+void collectSavedRollInput(char *name, char *value, int lastY) {
+    int xMax = getmaxx(stdscr);
+    WINDOW *savedRollInputWin = newwin(4, xMax - 12, lastY, 5);
+    box(savedRollInputWin, 0, 0);
+    curs_set(1);
+    echo();
+    mvwprintw(savedRollInputWin, 1, 1, "Enter the name of the roll: ");
+    keypad(savedRollInputWin, true);
+    wrefresh(savedRollInputWin);
+    mvwgetnstr(savedRollInputWin, 1, 29, name, 15);
+    mvwprintw(savedRollInputWin, 2, 1, "Enter the roll itself: ");
+    mvwgetnstr(savedRollInputWin, 2, 24, value, BUF_SIZE);
+    wclear(savedRollInputWin);
+    wrefresh(savedRollInputWin);
+    delwin(savedRollInputWin);
+}
+
+void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update) {
+    char rollName[16];
+    char value[BUF_SIZE];
+    collectSavedRollInput(rollName, value, lastY);
+    string name = rollName, val = value;
+    if (update) {
+        controller.updateRoll(name, val);
+    } else {
+        controller.addRoll(name, val);
+    }
+}
+
+void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller) {
+    echo();
+    char rollToRm[16];
+    wmove(rollsWin, 3, 1);
+    wclrtoeol(rollsWin);
+    mvwprintw(rollsWin, 3, 1, "Name of the roll to remove: ");
+    box(rollsWin, 0, 0);
+    wrefresh(rollsWin);
+    curs_set(1);
+    keypad(rollsWin, true);
+    mvwgetnstr(rollsWin, 3, 29, rollToRm, 15);
+    string key = rollToRm;
+    controller.removeRoll(key);
+    curs_set(0);
 }
 
 void handleSettings(int lastY, DiceController &controller) {
