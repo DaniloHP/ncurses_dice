@@ -1,7 +1,3 @@
-//
-// Created by danilo on 5/14/20.
-//
-
 #include "../../include/DiceRoll.h"
 
 DiceRoll::DiceRoll() {
@@ -36,10 +32,6 @@ int DiceRoll::getReps() const {
 
 void DiceRoll::setReps(int nReps) {
     this->reps = nReps;
-}
-
-int DiceRoll::getOrigReps() const {
-    return origReps;
 }
 
 void DiceRoll::setOrigReps(int nOrigReps) {

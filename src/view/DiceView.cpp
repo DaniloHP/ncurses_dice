@@ -5,11 +5,9 @@
 #include <iostream>
 #include "../../include/DiceController.h"
 #define ENTER 10
-#define DEFAULT_SLEEP 80000
 #define BUF_SIZE 40
 
 using namespace std;
-long delayMicroSec = DEFAULT_SLEEP;
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
         int size, short offset);
@@ -20,7 +18,7 @@ void setUpWhatDo(int lastY, WINDOW *&whatDo);
 void handleSettings(int lastY, DiceController &controller);
 void displayInputWin(WINDOW *inWin, char *roll);
 int getNumLength(int n);
-void handleChangeRollDelay(WINDOW *setWin);
+void handleChangeRollDelay(WINDOW *setWin, DiceController &controller);
 void handleClearLog(WINDOW *setWin, DiceController &controller);
 void handleToggleAces(WINDOW *setWin, DiceController &controller);
 
@@ -166,7 +164,7 @@ void handleSettings(int lastY, DiceController &controller) {
         printMenu(highlight, choice, setWin, choices, numSettings, 1);
         if (choice == 10) { //use pressed enter
             if (highlight == 0) { //change roll delay
-                handleChangeRollDelay(setWin);
+                handleChangeRollDelay(setWin, controller);
             } else if (highlight == 1) { //clear log
                 handleClearLog(setWin, controller);
             } else if (highlight == 2) { //toggle aces
@@ -183,7 +181,7 @@ void handleSettings(int lastY, DiceController &controller) {
     delwin(setWin);
 }
 
-void handleChangeRollDelay(WINDOW *setWin) {
+void handleChangeRollDelay(WINDOW *setWin, DiceController &controller) {
     echo();
     curs_set(1);
     char newVal[10];
@@ -196,7 +194,7 @@ void handleChangeRollDelay(WINDOW *setWin) {
     try {
         long millis = stol(newVal);
         if (millis >= 0) {
-            delayMicroSec = millis * 1000;
+            controller.setDelayNanoSeconds(millis * 1000);
         } else {
             throw invalid_argument("No values less than 0.");
         }
@@ -255,7 +253,7 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
         lastY = 7 + (i * 3);
         for (j = 0; j < reps; j++) {
-            usleep(delayMicroSec);
+            usleep(controller.getDelayNanoSeconds());
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
             totalRoll += to_string(dr->getAt(j)) + " ";
@@ -280,4 +278,4 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
     delwin(totalWin);
     controller.logRolls(totalRoll);
     totalRoll.erase(0);
-} 
+}

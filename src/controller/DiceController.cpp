@@ -1,7 +1,3 @@
-//
-// Created by danilo on 5/14/20.
-//
-
 #include "../../include/DiceController.h"
 #include <random>
 #include <fstream>
@@ -10,8 +6,12 @@
 DiceController::DiceController() {
     std::mt19937 mt(randomDevice());
     this->twisterEngine = mt;
-    aces = true; //eventually read from a file or something
+    logPath = model.getLogPath();
 }
+
+//DiceController::~DiceController() {
+//    model.~DiceModel();
+//}
 
 int DiceController::getRoll(int dieType) {
     std::uniform_int_distribution<int> dist(1, dieType);
@@ -43,7 +43,7 @@ void DiceController::logRolls(const std::string& rolls) {
     time_t now = time(nullptr);
     std::string date = ctime(&now);
     std::ofstream file;
-    file.open(LOG_NAME, std::ios_base::app);
+    file.open(logPath, std::ios_base::app);
     file << date + rolls << std::endl;
     file.close();
     date.erase(0);
@@ -51,12 +51,12 @@ void DiceController::logRolls(const std::string& rolls) {
 
 void DiceController::clearLog() {
     std::ofstream file;
-    file.open(LOG_NAME, std::ofstream::out | std::ofstream::trunc);
+    file.open(logPath, std::ofstream::out | std::ofstream::trunc);
     file.close();
 }
 
-//TODO vector of DiceRoll pointers? And then freeing them when necessary?
 std::vector<DiceRoll*> *DiceController::getAllRolls(char *roll) {
+    bool aces = model.isAcing();
     auto *allRolls = new std::vector<DiceRoll*>();
     std::vector<int> *rollNums = parseRoll(roll);
     int sum, origReps, dieType, reps, rollVal, i, j;
@@ -82,9 +82,17 @@ std::vector<DiceRoll*> *DiceController::getAllRolls(char *roll) {
 }
 
 bool DiceController::isAcing() const {
-    return aces;
+    return model.isAcing();
 }
 
 void DiceController::toggleAces() {
-    aces = !aces;
+    model.toggleAces();
+}
+
+long DiceController::getDelayNanoSeconds() const {
+    return model.getDelayNanoSeconds();
+}
+
+void DiceController::setDelayNanoSeconds(long delay) {
+    model.setDelayNanoSeconds(delay);
 }

@@ -1,7 +1,3 @@
-//
-// Created by danilo on 5/14/20.
-//
-
 #ifndef DICE_ROLL_H
 #define DICE_ROLL_H
 #include <vector>
