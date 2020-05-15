@@ -11,6 +11,7 @@
 #endif
 
 #define DEFAULT_LOG_PATH "RollHistory.txt"
+#define DEFAULT_TEMP_PATH "temp"
 #define DEFAULT_DELAY 80000
 
 class DiceModel {
@@ -22,16 +23,28 @@ public:
     const std::string &getLogPath() const;
     long getDelayNanoSeconds() const;
     void setDelayNanoSeconds(long delay);
+    bool configContainsKey(const std::string &key);
+    void addLineToConfig(const std::string &key, const std::string &newValue,
+                         const std::string &section);
+    void updateConfig(const std::string &key, const std::string &newValue,
+                      const std::string &section);
+    void
+    removeLineFromConfig(const std::string &key, const std::string &section);
+
+    const std::string sectionSettings = "[settings]";
+    const std::string sectionRolls = "[rolls]";
 
 private:
     bool aces;
     long delayNanoSeconds;
-    std::map<std::string, std::string> savedRolls;
     std::string logPath;
     const std::string keyAces = "bAces";
     const std::string keyLogPath = "rollLogSavePath";
     const std::string keyDelay = "delayNanoSeconds";
-    void updateConfig(const std::string &key, const std::string &newValue);
+    std::map<std::string, std::string> savedRolls;
+
+    bool lineIsKey(const std::string &line, const std::string &key);
+
 };
 
 #endif //NCURSES_DICEMODEL_H

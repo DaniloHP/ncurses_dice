@@ -17,6 +17,9 @@ public:
     std::vector<DiceRoll*> *getAllRolls(char *roll);
     long getDelayNanoSeconds() const;
     void setDelayNanoSeconds(long delay);
+    void addRoll(const std::string &key, const std::string &value);
+    void removeRoll(const std::string &key);
+    void updateRoll(const std::string &key, const std::string &newValue);
 
 private:
     //vars

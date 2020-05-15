@@ -4,8 +4,6 @@
 using namespace std;
 int main() {
     DiceModel model;
-    cout << model.getLogPath() << endl;
-    cout << model.getDelayNanoSeconds() << endl;
-    model.toggleAces();
+    model.updateConfig("bAces", "0442", model.sectionRolls);
     return 0;
 }

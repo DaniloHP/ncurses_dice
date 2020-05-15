@@ -21,9 +21,8 @@ int getNumLength(int n);
 void handleChangeRollDelay(WINDOW *setWin, DiceController &controller);
 void handleClearLog(WINDOW *setWin, DiceController &controller);
 void handleToggleAces(WINDOW *setWin, DiceController &controller);
-
-
-void freeAllRolls(vector<DiceRoll *> *pVector);
+void freeAllRolls(vector<DiceRoll *> *allRolls);
+void handleSavedRolls(int lastY, DiceController &controller);
 
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
@@ -32,7 +31,7 @@ int main() {
     int lastY, choice, highlight;
     vector<int> rollNums;
     vector<DiceRoll*> *allRolls;
-    bool redo, done, sett;
+    bool redo, done, enteredSubmenu;
     done = redo = false;
     cbreak();
     while (!done) {
@@ -44,21 +43,25 @@ int main() {
         setUpWhatDo(lastY, whatDo);
         highlight = redo ? 1 : 0;
         while (true) {
-            redo = sett = false;
+            redo = enteredSubmenu = false;
             const char *choices[] = {
                     (const char*)"Roll again", (const char*)"Reroll this roll",
-                    (const char*)"Settings", (const char*)"Exit"};
-            printMenu(highlight, choice, whatDo, choices, 4, 2);
-            if (choice == ENTER) { //pressed enter
-                if (highlight == 3) { //exit
+                    (const char*)"Saved rolls", (const char*)"Settings",
+                    (const char*)"Exit"};
+            printMenu(highlight, choice, whatDo, choices, 5, 2);
+            if (choice == ENTER) { //perhaps a map from index to function pointer for handling?
+                if (highlight == 4) { //exit
                     done = true;
-                } else if (highlight == 2) { //settings
+                } else if (highlight == 3) { //settings
                     handleSettings(lastY, controller);
-                    sett = true;
+                    enteredSubmenu = true;
+                } else if (highlight == 2) {
+                    handleSavedRolls(lastY, controller);
+                    enteredSubmenu = true;
                 } else if (highlight == 1) { //redo the roll
                     redo = true;
                 }
-                if (!sett) {
+                if (!enteredSubmenu) {
                     clear();
                     refresh();
                     displayInputWin(inputWin, roll);
@@ -110,8 +113,9 @@ void displayInputWin(WINDOW *inWin, char *roll) {
 } //wrefresh does not work in here, maybe because double pointer or something?
 
 void setUpWhatDo(int lastY, WINDOW *&whatDo) {
+    int numSettings = 5;
     if (whatDo == nullptr) {
-        whatDo = newwin(7, 40, lastY + 4, 5);
+        whatDo = newwin(numSettings + 3, 40, lastY + 4, 5);
     } else {
         mvwin(whatDo, lastY + 4, 5);
     }
@@ -146,6 +150,40 @@ void printMenu(int& highlight, int& choice, WINDOW* win, const char **choices, i
         default:
             break;
     }
+}
+
+void handleSavedRolls(int lastY, DiceController &controller) {
+    int highlight, choice;
+    highlight = choice = 0;
+    const char *choices[] = {
+            (const char *)"Add a new roll", (const char *)"Update a roll",
+            (const char *)"Remove a roll", (const char *)"Exit saved rolls"};
+    int numChoices = 4;
+    WINDOW* rollsWin = newwin(numChoices + 2, 40, lastY + 4, 46);
+    keypad(rollsWin, true);
+    box(rollsWin, 0, 0);
+    while (true) {
+        wclear(rollsWin);
+        box(rollsWin, 0, 0);
+        printMenu(highlight, choice, rollsWin, choices, numChoices, 1);
+        if (choice == 10) { //use pressed enter
+//            if (highlight == 0) { //change roll delay
+//                handleChangeRollDelay(rollsWin, controller);
+//            } else if (highlight == 1) { //clear log
+//                handleClearLog(rollsWin, controller);
+//            } else if (highlight == 2) { //toggle aces
+//                handleToggleAces(rollsWin, controller);
+//            }
+            if (highlight == numChoices - 1) { //exit settings
+                break;
+            }
+            curs_set(0);
+            noecho();
+        }
+    }
+    wclear(rollsWin);
+    wrefresh(rollsWin);
+    delwin(rollsWin);
 }
 
 void handleSettings(int lastY, DiceController &controller) {

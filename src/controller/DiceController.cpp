@@ -96,3 +96,15 @@ long DiceController::getDelayNanoSeconds() const {
 void DiceController::setDelayNanoSeconds(long delay) {
     model.setDelayNanoSeconds(delay);
 }
+
+void DiceController::updateRoll(const std::string &key, const std::string &newValue) {
+    model.updateConfig(key, newValue, model.sectionRolls);
+}
+
+void DiceController::removeRoll(const std::string &key) {
+    model.removeLineFromConfig(key, model.sectionRolls);
+}
+
+void DiceController::addRoll(const std::string &key, const std::string &value) {
+    model.addLineToConfig(key, value, model.sectionRolls);
+}
