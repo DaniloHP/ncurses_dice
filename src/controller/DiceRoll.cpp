@@ -10,7 +10,8 @@ DiceRoll::DiceRoll() {
 }
 
 DiceRoll::~DiceRoll() {
-//    delete rolls;
+    rolls->clear();
+    delete rolls;
 }
 
 int DiceRoll::getSum() const {

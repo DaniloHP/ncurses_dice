@@ -56,27 +56,28 @@ void DiceController::clearLog() {
 }
 
 //TODO vector of DiceRoll pointers? And then freeing them when necessary?
-std::vector<DiceRoll> *DiceController::getAllRolls(char *roll) {
-    auto *allRolls = new std::vector<DiceRoll>();
+std::vector<DiceRoll*> *DiceController::getAllRolls(char *roll) {
+    auto *allRolls = new std::vector<DiceRoll*>();
     std::vector<int> *rollNums = parseRoll(roll);
     int sum, origReps, dieType, reps, rollVal, i, j;
     for (i = 0; i < rollNums->size(); i += 2) {
-        DiceRoll currRoll;
+        auto currRoll = new DiceRoll();
         sum = 0;
         dieType = rollNums->at(i + 1);
         reps = origReps = rollNums->at(i);
-        currRoll.setDieType(dieType);
-        currRoll.setOrigReps(origReps);
+        currRoll->setDieType(dieType);
+        currRoll->setOrigReps(origReps);
         for (j = 0; j < reps; j++) {
             rollVal = getRoll(dieType);
-            currRoll.pushBack(rollVal);
+            currRoll->pushBack(rollVal);
             sum += rollVal;
             if (aces && rollVal == dieType && dieType != 1) reps++;
         }
-        currRoll.setReps(reps);
-        currRoll.setSum(sum);
+        currRoll->setReps(reps);
+        currRoll->setSum(sum);
         allRolls->push_back(currRoll);
     }
+    delete rollNums;
     return allRolls;
 }
 

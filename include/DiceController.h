@@ -14,7 +14,7 @@ public:
     void clearLog();
     bool isAcing() const;
     void toggleAces();
-    std::vector<DiceRoll> *getAllRolls(char *roll);
+    std::vector<DiceRoll*> *getAllRolls(char *roll);
 
 private:
     int getRoll(int);
