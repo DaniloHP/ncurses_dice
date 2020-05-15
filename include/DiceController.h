@@ -10,15 +10,15 @@
 class DiceController {
 public:
     DiceController();
-    int getRoll(int);
-    std::vector<int> *parseRoll(char*);
     void logRolls(const std::string& rolls);
     void clearLog();
     bool isAcing() const;
     void toggleAces();
-    std::vector<DiceRoll> *getAllRolls(std::vector<int> *roll_nums);
+    std::vector<DiceRoll> *getAllRolls(char *roll);
 
 private:
+    int getRoll(int);
+    std::vector<int> *parseRoll(char*);
     bool aces;
 
 private:

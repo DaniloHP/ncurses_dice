@@ -11,10 +11,10 @@ DiceController::DiceController() {
     aces = true; //eventually read from a file or something
 }
 
-int DiceController::getRoll(int die_type) {
+int DiceController::getRoll(int dieType) {
     std::random_device rd;
     std::mt19937 mt(rd());
-    std::uniform_int_distribution<int> dist(1, die_type);
+    std::uniform_int_distribution<int> dist(1, dieType);
     return dist(mt);
 }
 
@@ -55,27 +55,29 @@ void DiceController::clearLog() {
     file.close();
 }
 
-std::vector<DiceRoll> *DiceController::getAllRolls(std::vector<int>* roll_nums) {
-    auto *ALL_ROLLS = new std::vector<std::vector<int>>();
-    std::string total_roll;
-    int sum, total_sum, orig_reps, die_type, reps, roll_val, i, j;
-    for (i = 0; i < roll_nums->size(); i += 2) {
+//TODO vector of DiceRoll pointers? And then freeing them when necessary?
+std::vector<DiceRoll> *DiceController::getAllRolls(char *roll) {
+    auto *allRolls = new std::vector<DiceRoll>();
+    std::vector<int> *rollNums = parseRoll(roll);
+    int sum, origReps, dieType, reps, rollVal, i, j;
+    for (i = 0; i < rollNums->size(); i += 2) {
+        DiceRoll currRoll;
         sum = 0;
-        die_type = roll_nums->at(i + 1);
-        reps = orig_reps = roll_nums->at(i);
-        total_roll += std::to_string(reps) + "d" + std::to_string(die_type) + ": ";
+        dieType = rollNums->at(i + 1);
+        reps = origReps = rollNums->at(i);
+        currRoll.setDieType(dieType);
+        currRoll.setOrigReps(origReps);
         for (j = 0; j < reps; j++) {
-            roll_val = getRoll(die_type);
-            sum += roll_val;
-            total_roll += std::to_string(roll_val) + " ";
-            if (aces && roll_val == die_type && die_type != 1) reps++;
+            rollVal = getRoll(dieType);
+            currRoll.pushBack(rollVal);
+            sum += rollVal;
+            if (aces && rollVal == dieType && dieType != 1) reps++;
         }
-        total_sum += sum;
-        total_roll += "\n";
-        std::string aces_msg = "| " + std::to_string((reps - orig_reps)) + " ace(s)";
-        aces_msg.erase(0);
+        currRoll.setReps(reps);
+        currRoll.setSum(sum);
+        allRolls->push_back(currRoll);
     }
-    return nullptr;
+    return allRolls;
 }
 
 bool DiceController::isAcing() const {

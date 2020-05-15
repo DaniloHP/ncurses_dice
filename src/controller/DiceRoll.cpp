@@ -4,6 +4,15 @@
 
 #include "../../include/DiceRoll.h"
 
+DiceRoll::DiceRoll() {
+    sum = dieType = reps = origReps = numAces = 0;
+    rolls = new std::vector<int>();
+}
+
+DiceRoll::~DiceRoll() {
+//    delete rolls;
+}
+
 int DiceRoll::getSum() const {
     return sum;
 }
@@ -37,17 +46,16 @@ void DiceRoll::setOrigReps(int nOrigReps) {
 }
 
 int DiceRoll::getNumAces() const {
-    return numAces;
+    return reps - origReps;
 }
 
-void DiceRoll::setNumAces(int nNumAces) {
-    this->numAces = nNumAces;
+int DiceRoll::getAt(int i) const {
+    if (i < rolls->size())
+        return rolls->at(i);
+    else
+        return -1;
 }
 
-const std::vector<int> &DiceRoll::getDice() const {
-    return dice;
-}
-
-void DiceRoll::setDice(const std::vector<int> &nDice) {
-    this->dice = nDice;
+void DiceRoll::pushBack(int val) {
+    rolls->push_back(val);
 }

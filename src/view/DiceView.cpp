@@ -12,9 +12,10 @@ long delayMicroSec = DEFAULT_SLEEP;
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
         int size, short offset);
-void printRolls(vector<int> *rollNums, int &lastY, DiceController &controller);
+void
+printRolls(vector<DiceRoll> *allRolls, int &lastY, DiceController &controller);
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll);
-void setUpWhatDoWin(int lastY, WINDOW *&whatDo);
+void setUpWhatDo(int lastY, WINDOW *&whatDo);
 void handleSettings(int lastY, DiceController &controller);
 void displayInputWin(WINDOW *inWin, char *roll);
 int getNumLength(int n);
@@ -29,14 +30,16 @@ int main() {
     char roll[40];
     int lastY, choice, highlight;
     vector<int> rollNums;
+    vector<DiceRoll> *allRolls;
     bool redo, done, sett;
     done = redo = false;
     cbreak();
     while (!done) {
-        setupInputWin(inputWin, redo, roll);
+        setupInputWin(inputWin, redo, roll); //this collects input
+        allRolls = controller.getAllRolls(roll);
         lastY = 11;
-        printRolls(controller.parseRoll(roll), lastY, controller);
-        setUpWhatDoWin(lastY, whatDo);
+        printRolls(allRolls, lastY, controller);
+        setUpWhatDo(lastY, whatDo);
         highlight = redo ? 1 : 0;
         while (true) {
             redo = sett = false;
@@ -98,7 +101,7 @@ void displayInputWin(WINDOW *inWin, char *roll) {
     noecho();
 } //wrefresh does not work in here, maybe because double pointer or something?
 
-void setUpWhatDoWin(int lastY, WINDOW *&whatDo) {
+void setUpWhatDo(int lastY, WINDOW *&whatDo) {
     if (whatDo == nullptr) {
         whatDo = newwin(7, 40, lastY + 4, 5);
     } else {
@@ -230,32 +233,29 @@ int getNumLength(int n) {
     }
 }
 
-void printRolls(vector<int> *rollNums, int &lastY, DiceController &controller) {
-    //TODO: make the controller jut give this a 2d vector of rolls, with all the aces and random numbers worked out
-    int sum, totalSum, origReps, dieType, reps, numLen, rollVal, i, j;
+void printRolls(vector<DiceRoll> *allRolls, int &lastY, DiceController &controller) {
+    int sum, totalSum, origReps, dieType, reps, numLen, rollVal, j, i = 0;
     bool aces = controller.isAcing();
     WINDOW *die, *statsWin, *totalWin;
     string totalRoll;
     totalSum = 0;
-    vector<DiceRoll> *ALL_ROLLS = controller.getAllRolls(rollNums);
-    for (i = 0; i < rollNums->size(); i += 2) {
-        sum = 0;
-        dieType = rollNums->at(i + 1);
+    for (const DiceRoll &dr : *allRolls) {
+        sum = dr.getSum();
+        dieType = dr.getDieType();
         numLen = getNumLength(dieType);
-        reps = origReps = rollNums->at(i);
+        reps = dr.getReps();
+        origReps = dr.getOrigReps();
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
-        lastY = 7 + (i * 2);
+        lastY = 7 + (i * 3);
         for (j = 0; j < reps; j++) {
             usleep(delayMicroSec);
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            rollVal = controller.getRoll(dieType);
-            sum += rollVal;
+            rollVal = dr.getAt(j);
             totalRoll += to_string(rollVal) + " ";
             mvwprintw(die, 1, 1, "%d", rollVal);
             wrefresh(die);
             delwin(die);
-            if (aces && rollVal == dieType && dieType != 1) reps++;
         }
         totalSum += sum;
         totalRoll += "\n";
@@ -268,8 +268,9 @@ void printRolls(vector<int> *rollNums, int &lastY, DiceController &controller) {
         wrefresh(statsWin);
         acesMsg.erase(0);
         delwin(statsWin);
+        i++;
     }
-    delete rollNums;
+    delete allRolls;
     totalWin = newwin(1, 32, lastY + 3, 5);
     mvwprintw(totalWin, 0, 0, "Sum of all rolls: %d", totalSum);
     wrefresh(totalWin);

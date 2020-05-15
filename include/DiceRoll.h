@@ -9,9 +9,13 @@
 class DiceRoll {
 private:
     int sum, dieType, reps, origReps, numAces;
-    std::vector<int> dice;
+    std::vector<int> *rolls;
 
 public:
+
+    DiceRoll();
+
+    ~DiceRoll();
 
     int getSum() const;
 
@@ -31,11 +35,9 @@ public:
 
     int getNumAces() const;
 
-    void setNumAces(int nNumAces);
+    int getAt(int i) const;
 
-    const std::vector<int> &getDice() const;
-
-    void setDice(const std::vector<int> &nDice);
+    void pushBack(int val);
 };
 
 #endif //NCURSES_DICEROLL_H
