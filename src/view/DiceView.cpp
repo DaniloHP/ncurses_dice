@@ -6,6 +6,7 @@
 #include "../../include/DiceController.h"
 #define ENTER 10
 #define DEFAULT_SLEEP 80000
+#define BUF_SIZE 40
 
 using namespace std;
 long delayMicroSec = DEFAULT_SLEEP;
@@ -29,7 +30,7 @@ void freeAllRolls(vector<DiceRoll *> *pVector);
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
     DiceController controller;
-    char roll[40];
+    char roll[BUF_SIZE];
     int lastY, choice, highlight;
     vector<int> rollNums;
     vector<DiceRoll*> *allRolls;
@@ -96,7 +97,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll) {
     } else {
         echo();
         curs_set(1);
-        mvwgetnstr(inWin, 2, 1, roll, 40);
+        mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
     }
     curs_set(0);
     noecho();
@@ -243,39 +244,33 @@ int getNumLength(int n) {
 }
 
 void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller) {
-    int sum, totalSum, origReps, dieType, reps, numLen, rollVal, j, i = 0;
-    bool aces = controller.isAcing();
+    int sum, dieType, reps, numLen, j, totalSum = 0, i = 0;
     WINDOW *die, *statsWin, *totalWin;
-    string totalRoll;
-    totalSum = 0;
+    string totalRoll, acesMsg;
     for (const DiceRoll *dr : *allRolls) {
         sum = dr->getSum();
         dieType = dr->getDieType();
         numLen = getNumLength(dieType);
         reps = dr->getReps();
-        origReps = dr->getOrigReps();
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
         lastY = 7 + (i * 3);
         for (j = 0; j < reps; j++) {
             usleep(delayMicroSec);
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            rollVal = dr->getAt(j);
-            totalRoll += to_string(rollVal) + " ";
-            mvwprintw(die, 1, 1, "%d", rollVal);
-            wrefresh(die);
+            totalRoll += to_string(dr->getAt(j)) + " ";
+            mvwprintw(die, 1, 1, "%d", dr->getAt(j));
+            wrefresh(die); //dr->getAt(j) is the actual value of the roll
             delwin(die);
         }
         totalSum += sum;
-        totalRoll += "\n";
+        totalRoll += '\n';
         statsWin = newwin(2, 32, lastY, (7 + (j * (numLen + 3))));
-        string acesMsg = "| " + to_string((reps - origReps)) + " ace(s)";
-        mvwprintw(statsWin, 0, 0, "Sum: %d %s", sum,
-                  (aces) ? acesMsg.c_str() : "");
-        mvwprintw(statsWin, 1, 0, "<-- %dd%d", reps,
-                  dieType);
+        acesMsg = "| " + to_string(dr->getNumAces()) + " ace(s)";
+        mvwprintw(statsWin, 0, 0, "Sum: %d %s", sum, (controller.isAcing() ?
+                                                      acesMsg.c_str() : ""));
+        mvwprintw(statsWin, 1, 0, "<-- %dd%d", reps, dieType);
         wrefresh(statsWin);
-        acesMsg.erase(0);
         delwin(statsWin);
         i++;
     }
@@ -285,4 +280,4 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
     delwin(totalWin);
     controller.logRolls(totalRoll);
     totalRoll.erase(0);
-}
+} 

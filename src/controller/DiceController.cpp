@@ -8,14 +8,14 @@
 #include <string>
 
 DiceController::DiceController() {
+    std::mt19937 mt(randomDevice());
+    this->twisterEngine = mt;
     aces = true; //eventually read from a file or something
 }
 
 int DiceController::getRoll(int dieType) {
-    std::random_device rd;
-    std::mt19937 mt(rd());
     std::uniform_int_distribution<int> dist(1, dieType);
-    return dist(mt);
+    return dist(twisterEngine);
 }
 
 std::vector<int>* DiceController::parseRoll(char *roll) {
@@ -43,7 +43,7 @@ void DiceController::logRolls(const std::string& rolls) {
     time_t now = time(nullptr);
     std::string date = ctime(&now);
     std::ofstream file;
-    file.open(logName, std::ios_base::app);
+    file.open(LOG_NAME, std::ios_base::app);
     file << date + rolls << std::endl;
     file.close();
     date.erase(0);
@@ -51,7 +51,7 @@ void DiceController::logRolls(const std::string& rolls) {
 
 void DiceController::clearLog() {
     std::ofstream file;
-    file.open(logName, std::ofstream::out | std::ofstream::trunc);
+    file.open(LOG_NAME, std::ofstream::out | std::ofstream::trunc);
     file.close();
 }
 

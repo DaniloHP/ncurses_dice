@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include "DiceRoll.h"
+#include <random>
 
 class DiceController {
 public:
@@ -17,12 +18,16 @@ public:
     std::vector<DiceRoll*> *getAllRolls(char *roll);
 
 private:
+    //vars
+    std::random_device randomDevice;
+    std::mt19937 twisterEngine;
+    bool aces;
+    const char* LOG_NAME = "RollHistory.txt";
+
+    //functions
     int getRoll(int);
     std::vector<int> *parseRoll(char*);
-    bool aces;
 
-private:
-    const char* logName = "RollHistory.txt";
 };
 
 
