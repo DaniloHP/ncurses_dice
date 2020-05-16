@@ -13,5 +13,4 @@ add_executable(ncurses
         src/model/DiceModel.cpp
         include/DiceModel.h
         test/ModelTest.cpp
-        test/ModelTest.cpp
         )

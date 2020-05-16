@@ -4,9 +4,10 @@
 #include <unistd.h>
 #include <iostream>
 #include "../../include/DiceController.h"
+
 #define ENTER 10
 #define BUF_SIZE 40
-
+#define ROLL_REGEX R"((\d{0,2}[dD]\d+(\s|$))+)"
 using namespace std;
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
@@ -23,10 +24,10 @@ void handleClearLog(WINDOW *setWin, DiceController &controller);
 void handleToggleAces(WINDOW *setWin, DiceController &controller);
 void freeAllRolls(vector<DiceRoll *> *allRolls);
 void handleSavedRolls(int lastY, DiceController &controller);
-
 void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller);
-
 void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
+void indicateError(WINDOW *const &window, int problemY, int problemX,
+                   const char *msg, int originalY, int originalX);
 
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
@@ -103,9 +104,34 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll) {
         echo();
         curs_set(1);
         mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
+        while (!regex_match(roll, regex(ROLL_REGEX))) { //check if its a saved roll too
+            indicateError(inWin, 1, 1, "Invalid roll format", 2, 1);
+            mvwprintw(inWin, 1, 1, "Enter your roll:");
+            mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
+        }
     }
     curs_set(0);
     noecho();
+}
+
+void indicateError(WINDOW *const &window, int problemY, int problemX,
+                   const char *msg, int originalY, int originalX) {
+    wmove(window, problemY, problemX);
+    curs_set(0);
+    wclrtoeol(window);
+    wattron(window, A_BOLD);
+    box(window, 0, 0);
+    mvwprintw(window, problemY, problemX, msg);
+    wattroff(window, A_BOLD);
+    wrefresh(window);
+    usleep(1500000);
+    box(window, 0, 0);
+    wmove(window, problemY, problemX);
+    wclrtoeol(window);
+    wmove(window, originalY, originalX);
+    wclrtoeol(window);
+    wrefresh(window);
+    curs_set(1);
 }
 
 void displayInputWin(WINDOW *inWin, char *roll) {
@@ -285,15 +311,7 @@ void handleChangeRollDelay(WINDOW *setWin, DiceController &controller) {
             throw invalid_argument("No values less than 0.");
         }
     } catch (invalid_argument &e) {
-        wmove(setWin, 1, 1);
-        curs_set(0);
-        wclrtoeol(setWin);
-        wattron(setWin, A_BOLD);
-        box(setWin, 0, 0);
-        mvwprintw(setWin, 1, 1, "invalid input");
-        wattroff(setWin, A_BOLD);
-        wrefresh(setWin);
-        usleep(1500000);
+        indicateError(setWin, 1, 1, "Invalid input",1, 1);
     }
 }
 
