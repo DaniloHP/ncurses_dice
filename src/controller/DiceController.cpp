@@ -97,22 +97,22 @@ void DiceController::setDelay(long delay) {
     model.setDelay(delay);
 }
 
-void DiceController::updateRoll(const std::string &key, const std::string &newValue) {
-    model.updateConfig(key, newValue, model.sectionRolls);
+bool DiceController::updateRoll(const std::string &key, const std::string &newValue) {
+    return model.updateConfig(key, newValue, model.sectionRolls);
 }
 
-void DiceController::removeRoll(const std::string &key) {
-    model.removeLineFromConfig(key, model.sectionRolls);
+bool DiceController::removeRoll(const std::string &key) {
+    return model.removeLineFromConfig(key, model.sectionRolls);
 }
 
-void DiceController::addRoll(const std::string &key, const std::string &value) {
-    model.addLineToConfig(key, value, model.sectionRolls);
+bool DiceController::addRoll(const std::string &key, const std::string &value) {
+    return model.addLineToConfig(key, value, model.sectionRolls);
 }
 
 std::string DiceController::getSavedRoll(const std::string &key) {
     return model.getSavedRoll(key);
 }
 
-int DiceController::getNumSavedRolls() {
-    return model.getNumSavedRolls();
+std::vector<std::string> *DiceController::getKeys() {
+    return model.getKeys();
 }

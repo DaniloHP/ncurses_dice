@@ -2,7 +2,6 @@
 #include "../../include/DiceModel.h"
 #include <iostream>
 #include <fstream>
-#include <memory>
 
 DiceModel::DiceModel() {
     std::string line, *key, *value;
@@ -94,7 +93,7 @@ void DiceModel::setDelay(long delay) {
     updateConfig(keyDelay, std::to_string(delay), sectionSettings);
 }
 
-void
+bool
 DiceModel::updateConfig(const std::string &key, const std::string &value,
                         const std::string &section) {
     if (section == sectionRolls) savedRolls.emplace(key, value);
@@ -129,9 +128,10 @@ DiceModel::updateConfig(const std::string &key, const std::string &value,
     }
     if (original.is_open()) original.close();
     if (newFile.is_open()) newFile.close();
+    return updated;
 }
 
-void DiceModel::removeLineFromConfig(const std::string &key,
+bool DiceModel::removeLineFromConfig(const std::string &key,
                                      const std::string &section) {
     if (section == sectionRolls) savedRolls.erase(key);
     bool inTheRightSection = false, removed = false;
@@ -164,11 +164,13 @@ void DiceModel::removeLineFromConfig(const std::string &key,
     }
     if (original.is_open()) original.close();
     if (newFile.is_open()) newFile.close();
+    return removed;
 }
 
-void DiceModel::addLineToConfig(const std::string &key, const std::string &value,
+bool DiceModel::addLineToConfig(const std::string &key, const std::string &value,
         const std::string &section) {
     if (section == sectionRolls) savedRolls.emplace(key, value);
+    bool added = false;
     std::string line;
     std::fstream original;
     std::ofstream newFile;
@@ -179,6 +181,7 @@ void DiceModel::addLineToConfig(const std::string &key, const std::string &value
             newFile << line << std::endl;
             if (line == section) { //the line we want to modify
                 newFile << key << '=' << value << std::endl;
+                added = true;
             }
         }
         std::remove(CONFIG_PATH);
@@ -186,6 +189,7 @@ void DiceModel::addLineToConfig(const std::string &key, const std::string &value
     }
     if (original.is_open()) original.close();
     if (newFile.is_open()) newFile.close();
+    return added;
 }
 
 bool DiceModel::configContainsKey(const std::string &key) {
@@ -217,6 +221,10 @@ bool DiceModel::lineIsKey(const std::string &line, const std::string &key) {
            line.at(key.length()) == '=';
 }
 
-int DiceModel::getNumSavedRolls() {
-    return savedRolls.size();
+std::vector<std::string> *DiceModel::getKeys() {
+    auto keySet = new std::vector<std::string>();
+    for(auto &kv : savedRolls) {
+        keySet->push_back(kv.first);
+    }
+    return keySet;
 }

@@ -13,14 +13,13 @@ using namespace std;
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
         int size, short offset);
-void
-printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
+void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
                    DiceController &controller);
 void setUpWhatDo(int lastY, WINDOW *&whatDo);
 void handleSettings(int lastY, DiceController &controller);
 void displayInputWin(WINDOW *inWin, char *roll);
-int getNumLength(int n);
+int  getNumLength(int n);
 void handleChangeRollDelay(WINDOW *setWin, DiceController &controller);
 void handleClearLog(WINDOW *setWin, DiceController &controller);
 void handleToggleAces(WINDOW *setWin, DiceController &controller);
@@ -97,7 +96,7 @@ void freeAllRolls(vector<DiceRoll*> *allRolls) {
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         DiceController &controller) { ///just make  ^^^^ into a string
     int xMax = getmaxx(stdscr);
-    string rollName;
+    string rollValue;
     if (inWin == nullptr) {
         inWin = newwin(4, xMax - 12, 2, 5);
     }
@@ -108,16 +107,20 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         echo();
         curs_set(1);
         mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
-        rollName = controller.getSavedRoll(roll);
-        while (!regex_match(roll, regex(ROLL_REGEX)) && rollName.empty()) {
+        rollValue = controller.getSavedRoll(roll);
+        while (!regex_match(roll, regex(ROLL_REGEX)) && rollValue.empty()) {
             indicateError(inWin, 1, 1, "Invalid roll format", 2, 1);
+            box(inWin, 0, 0);
             mvwprintw(inWin, 1, 1, "Enter your roll:");
             mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
-            rollName = controller.getSavedRoll(roll);
+            rollValue = controller.getSavedRoll(roll);
         }
-        if (!rollName.empty()) {
-            strncpy(roll, rollName.c_str(), BUF_SIZE);
+        if (!rollValue.empty()) {
+            int rollNameLen = strlen(roll);
+            strncpy(roll, rollValue.c_str(), BUF_SIZE);
             redo = true;
+            mvwprintw(inWin, 2, rollNameLen + 2, "(%s)", roll);
+            wrefresh(inWin);
         }
     } if (redo) {
         wmove(inWin, 2, 1);
@@ -202,9 +205,9 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     highlight = choice = 0;
     const char *choices[] = {
             (const char *)"Add a new roll", (const char *)"Update a roll",
-            (const char *)"List rolls", (const char *)"Remove a roll",
+            (const char *)"List saved rolls", (const char *)"Remove a roll",
             (const char *)"Exit saved rolls"};
-    int numChoices = 4;
+    int numChoices = 5;
     WINDOW* rollsWin = newwin(numChoices + 2, 46, lastY + 4, 46);
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
@@ -234,10 +237,18 @@ void handleSavedRolls(int lastY, DiceController &controller) {
 }
 
 void printSavedRolls(int lastY, DiceController &controller) {
-    int numRolls = controller.getNumSavedRolls();
-    int choice = 0;
-    WINDOW *rollsListWin = newwin(numRolls + 3, 64, lastY + 4, 5);
+    vector<string> *keys = controller.getKeys();
+    int i = 1, numRolls = keys->size(), choice = 0;
+    WINDOW *rollsListWin = newwin(numRolls + 3, 64, lastY, 5);
     box(rollsListWin, 0, 0);
+    for (const auto &roll : *keys) {
+        wattron(rollsListWin, A_BOLD);
+        mvwprintw(rollsListWin, i++, 1, "%s: ", roll.c_str());
+        wattroff(rollsListWin, A_BOLD);
+        wprintw(rollsListWin, controller.getSavedRoll(roll).c_str());
+    }
+    keys->clear();
+    delete keys;
     wattron(rollsListWin, A_REVERSE);
     mvwprintw(rollsListWin, numRolls + 1, 1, "Return");
     wattroff(rollsListWin, A_REVERSE);
@@ -262,8 +273,14 @@ void collectSavedRollInput(char *name, char *value, int lastY) {
     keypad(savedRollInputWin, true);
     wrefresh(savedRollInputWin);
     mvwgetnstr(savedRollInputWin, 1, 29, name, 15);
-    mvwprintw(savedRollInputWin, 2, 1, "Enter the roll itself: ");
-    mvwgetnstr(savedRollInputWin, 2, 24, value, BUF_SIZE);
+    mvwprintw(savedRollInputWin, 2, 1, "Enter the roll value: ");
+    mvwgetnstr(savedRollInputWin, 2, 23, value, BUF_SIZE);
+    while (!regex_match(value, regex(ROLL_REGEX))) {
+        indicateError(savedRollInputWin, 2, 1, "Invalid roll format", 2, 1);
+        mvwprintw(savedRollInputWin, 1, 1, "Enter the name of the roll: %s", name);
+        mvwprintw(savedRollInputWin, 2, 1, "Enter the roll value: ");
+        mvwgetnstr(savedRollInputWin, 2, 23, value, BUF_SIZE);
+    }
     wclear(savedRollInputWin);
     wrefresh(savedRollInputWin);
     delwin(savedRollInputWin);
@@ -294,8 +311,9 @@ void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller) {
     keypad(rollsWin, true);
     mvwgetnstr(rollsWin, row, 29, rollToRm, 15);
     string key = rollToRm;
-    controller.removeRoll(key);
-    curs_set(0);
+    if (!controller.removeRoll(key)) {
+        indicateError(rollsWin, row, 1, "Roll not found", row, 1);
+    }
 }
 
 void handleSettings(int lastY, DiceController &controller) {
@@ -419,5 +437,4 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
     wrefresh(totalWin);
     delwin(totalWin);
     controller.logRolls(totalRoll);
-    totalRoll.erase(0);
 }

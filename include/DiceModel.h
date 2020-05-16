@@ -2,7 +2,8 @@
 #define DICE_MODEL_H
 
 #include <string>
-#include <unordered_map>
+#include <map>
+#include <vector>
 
 #ifdef DEBUG
 #define CONFIG_PATH "../config.ini"
@@ -24,15 +25,15 @@ public:
     long getDelay() const;
     void setDelay(long delay);
     bool configContainsKey(const std::string &key);
-    void addLineToConfig(const std::string &key, const std::string &value,
+    bool addLineToConfig(const std::string &key, const std::string &value,
                          const std::string &section);
-    void updateConfig(const std::string &key, const std::string &value,
+    bool updateConfig(const std::string &key, const std::string &value,
                       const std::string &section);
-    void removeLineFromConfig(const std::string &key, const std::string &section);
+    bool removeLineFromConfig(const std::string &key, const std::string &section);
     std::string getSavedRoll(const std::string &key);
-    int getNumSavedRolls();
     const std::string sectionSettings = "[settings]";
     const std::string sectionRolls = "[rolls]";
+    std::vector<std::string> *getKeys();
 
 private:
     bool aces;
@@ -41,7 +42,7 @@ private:
     const std::string keyAces = "bAces";
     const std::string keyLogPath = "rollLogSavePath";
     const std::string keyDelay = "delayMicroSeconds";
-    std::unordered_map<std::string, std::string> savedRolls;
+    std::map<std::string, std::string> savedRolls;
     bool lineIsKey(const std::string &line, const std::string &key);
     std::string *extractValue(std::string &line, int startAt);
     std::string *extractKey(std::string &line);

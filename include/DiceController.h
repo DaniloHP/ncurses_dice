@@ -17,11 +17,11 @@ public:
     std::vector<DiceRoll*> *getAllRolls(char *roll);
     long getDelay() const;
     void setDelay(long delay);
-    void addRoll(const std::string &key, const std::string &value);
-    void removeRoll(const std::string &key);
-    void updateRoll(const std::string &key, const std::string &newValue);
+    bool addRoll(const std::string &key, const std::string &value);
+    bool removeRoll(const std::string &key);
+    bool updateRoll(const std::string &key, const std::string &newValue);
     std::string getSavedRoll(const std::string &key);
-    int getNumSavedRolls();
+    std::vector<std::string> *getKeys();
 
 private:
     //vars
