@@ -3,6 +3,7 @@
 #include <vector>
 #include <unistd.h>
 #include <iostream>
+#include <cstring>
 #include "../../include/DiceController.h"
 
 #define ENTER 10
@@ -14,7 +15,8 @@ void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
         int size, short offset);
 void
 printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
-void setupInputWin(WINDOW *&inWin, bool redo, char *roll);
+void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
+                   DiceController &controller);
 void setUpWhatDo(int lastY, WINDOW *&whatDo);
 void handleSettings(int lastY, DiceController &controller);
 void displayInputWin(WINDOW *inWin, char *roll);
@@ -29,6 +31,8 @@ void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
 void indicateError(WINDOW *const &window, int problemY, int problemX,
                    const char *msg, int originalY, int originalX);
 
+void printSavedRolls(int lastY, DiceController &controller);
+
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
     DiceController controller;
@@ -36,24 +40,24 @@ int main() {
     int lastY, choice, highlight;
     vector<int> rollNums;
     vector<DiceRoll*> *allRolls;
+    const char *whatDoChoices[] = {
+            (const char*)"Roll again", (const char*)"Reroll this roll",
+            (const char*)"Saved rolls", (const char*)"Settings",
+            (const char*)"Exit"};
     bool redo, done, enteredSubmenu;
     done = redo = false;
     cbreak();
     while (!done) {
-        setupInputWin(inputWin, redo, roll); //this collects input
+        setupInputWin(inputWin, redo, roll, controller); //this collects input
         lastY = 11;
         allRolls = controller.getAllRolls(roll);
         printRolls(allRolls, lastY, controller);
         freeAllRolls(allRolls);
         setUpWhatDo(lastY, whatDo);
-        highlight = redo ? 1 : 0;
+        highlight = redo ? 1 : 0; //if last roll was redo, start with reroll HL'd
         while (true) {
             redo = enteredSubmenu = false;
-            const char *choices[] = {
-                    (const char*)"Roll again", (const char*)"Reroll this roll",
-                    (const char*)"Saved rolls", (const char*)"Settings",
-                    (const char*)"Exit"};
-            printMenu(highlight, choice, whatDo, choices, 5, 2);
+            printMenu(highlight, choice, whatDo, whatDoChoices, 5, 2);
             if (choice == ENTER) { //perhaps a map from index to function pointer for handling?
                 if (highlight == 4) { //exit
                     done = true;
@@ -90,28 +94,39 @@ void freeAllRolls(vector<DiceRoll*> *allRolls) {
     delete allRolls;
 }
 
-void setupInputWin(WINDOW *&inWin, bool redo, char *roll) {
+void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
+        DiceController &controller) { ///just make  ^^^^ into a string
     int xMax = getmaxx(stdscr);
+    string rollName;
     if (inWin == nullptr) {
         inWin = newwin(4, xMax - 12, 2, 5);
     }
     wclear(inWin);
     box(inWin, 0, 0);
     mvwprintw(inWin, 1, 1, "Enter your roll:");
-    if (redo) {
-        mvwprintw(inWin, 2, 1, roll);
-    } else {
+    if (!redo) {
         echo();
         curs_set(1);
         mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
-        while (!regex_match(roll, regex(ROLL_REGEX))) { //check if its a saved roll too
+        rollName = controller.getSavedRoll(roll);
+        while (!regex_match(roll, regex(ROLL_REGEX)) && rollName.empty()) {
             indicateError(inWin, 1, 1, "Invalid roll format", 2, 1);
             mvwprintw(inWin, 1, 1, "Enter your roll:");
             mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
+            rollName = controller.getSavedRoll(roll);
         }
+        if (!rollName.empty()) {
+            strncpy(roll, rollName.c_str(), BUF_SIZE);
+            redo = true;
+        }
+    } if (redo) {
+        wmove(inWin, 2, 1);
+        wclrtoeol(inWin);
+        mvwprintw(inWin, 2, 1, roll);
     }
     curs_set(0);
     noecho();
+
 }
 
 void indicateError(WINDOW *const &window, int problemY, int problemX,
@@ -157,8 +172,8 @@ void setUpWhatDo(int lastY, WINDOW *&whatDo) {
     wrefresh(whatDo);
 }
 
-void printMenu(int& highlight, int& choice, WINDOW* win, const char **choices, int size,
-               short offset) {
+void printMenu(int& highlight, int& choice, WINDOW* win, const char **choices,
+               int size, short offset) {
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
@@ -187,7 +202,8 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     highlight = choice = 0;
     const char *choices[] = {
             (const char *)"Add a new roll", (const char *)"Update a roll",
-            (const char *)"Remove a roll", (const char *)"Exit saved rolls"};
+            (const char *)"List rolls", (const char *)"Remove a roll",
+            (const char *)"Exit saved rolls"};
     int numChoices = 4;
     WINDOW* rollsWin = newwin(numChoices + 2, 46, lastY + 4, 46);
     keypad(rollsWin, true);
@@ -201,9 +217,11 @@ void handleSavedRolls(int lastY, DiceController &controller) {
                 handleNewOrUpdateRoll(lastY + 12, controller, false);
             } else if (highlight == 1) { //update roll
                 handleNewOrUpdateRoll(lastY + 12, controller, true);
-            } else if (highlight == 2) { //remove roll
+            } else if (highlight == 2) { //list rolls
+                printSavedRolls(lastY + 12, controller);
+            } else if (highlight == 3) { //remove roll
                 handleRemoveRoll(rollsWin, controller);
-            } if (highlight == numChoices - 1) { //exit saved rolls
+            } else if (highlight == numChoices - 1) { //exit saved rolls
                 break;
             }
             curs_set(0);
@@ -213,6 +231,25 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     wclear(rollsWin);
     wrefresh(rollsWin);
     delwin(rollsWin);
+}
+
+void printSavedRolls(int lastY, DiceController &controller) {
+    int numRolls = controller.getNumSavedRolls();
+    int choice = 0;
+    WINDOW *rollsListWin = newwin(numRolls + 3, 64, lastY + 4, 5);
+    box(rollsListWin, 0, 0);
+    wattron(rollsListWin, A_REVERSE);
+    mvwprintw(rollsListWin, numRolls + 1, 1, "Return");
+    wattroff(rollsListWin, A_REVERSE);
+    wrefresh(rollsListWin);
+    keypad(rollsListWin, true);
+    curs_set(0);
+    while (choice != ENTER) {
+        choice = wgetch(rollsListWin);
+    }
+    wclear(rollsListWin);
+    wrefresh(rollsListWin);
+    delwin(rollsListWin);
 }
 
 void collectSavedRollInput(char *name, char *value, int lastY) {
@@ -245,16 +282,17 @@ void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update) {
 }
 
 void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller) {
+    int row = 4;
     echo();
     char rollToRm[16];
-    wmove(rollsWin, 3, 1);
+    wmove(rollsWin, row, 1);
     wclrtoeol(rollsWin);
-    mvwprintw(rollsWin, 3, 1, "Name of the roll to remove: ");
+    mvwprintw(rollsWin, row, 1, "Name of the roll to remove: ");
     box(rollsWin, 0, 0);
     wrefresh(rollsWin);
     curs_set(1);
     keypad(rollsWin, true);
-    mvwgetnstr(rollsWin, 3, 29, rollToRm, 15);
+    mvwgetnstr(rollsWin, row, 29, rollToRm, 15);
     string key = rollToRm;
     controller.removeRoll(key);
     curs_set(0);
@@ -306,7 +344,7 @@ void handleChangeRollDelay(WINDOW *setWin, DiceController &controller) {
     try {
         long millis = stol(newVal);
         if (millis >= 0) {
-            controller.setDelayNanoSeconds(millis * 1000);
+            controller.setDelay(millis * 1000);
         } else {
             throw invalid_argument("No values less than 0.");
         }
@@ -357,7 +395,7 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
         lastY = 7 + (i * 3);
         for (j = 0; j < reps; j++) {
-            usleep(controller.getDelayNanoSeconds());
+            usleep(controller.getDelay());
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
             totalRoll += to_string(dr->getAt(j)) + " ";

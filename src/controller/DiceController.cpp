@@ -89,12 +89,12 @@ void DiceController::toggleAces() {
     model.toggleAces();
 }
 
-long DiceController::getDelayNanoSeconds() const {
-    return model.getDelayNanoSeconds();
+long DiceController::getDelay() const {
+    return model.getDelay();
 }
 
-void DiceController::setDelayNanoSeconds(long delay) {
-    model.setDelayNanoSeconds(delay);
+void DiceController::setDelay(long delay) {
+    model.setDelay(delay);
 }
 
 void DiceController::updateRoll(const std::string &key, const std::string &newValue) {
@@ -107,4 +107,12 @@ void DiceController::removeRoll(const std::string &key) {
 
 void DiceController::addRoll(const std::string &key, const std::string &value) {
     model.addLineToConfig(key, value, model.sectionRolls);
+}
+
+std::string DiceController::getSavedRoll(const std::string &key) {
+    return model.getSavedRoll(key);
+}
+
+int DiceController::getNumSavedRolls() {
+    return model.getNumSavedRolls();
 }

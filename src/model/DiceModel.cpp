@@ -2,38 +2,75 @@
 #include "../../include/DiceModel.h"
 #include <iostream>
 #include <fstream>
+#include <memory>
 
 DiceModel::DiceModel() {
-    std::string line;
+    std::string line, *key, *value;
+    key = value = nullptr;
     std::ifstream file;
     file.open(CONFIG_PATH);
-
+    std::string currSection;
     //defaults, in case not found in the file
     aces = false;
     logPath = DEFAULT_LOG_PATH;
-    delayNanoSeconds = DEFAULT_DELAY;
-
+    delayMicroSeconds = DEFAULT_DELAY;
     if (file.is_open()) {
         while (getline(file, line)) {
-            if (line.rfind(keyAces, 0) == 0) {
-                aces = line.at(keyAces.length() + 1) == '1';
+            if (lineIsKey(line, keyAces)) {
+                value = extractValue(line, keyAces.length());
+                aces = *value == "0";
+                delete value;
             } else if (line.rfind(keyLogPath, 0) == 0) {
-                logPath = line.substr(keyLogPath.length() + 1);
+                value = extractValue(line, keyLogPath.length());
+                logPath = *value;
+                delete value;
             } else if (line.rfind(keyDelay, 0) == 0) {
                 try { //stol is only >c++11
-                    delayNanoSeconds = std::stol(line.substr(keyDelay.length() + 1));
+                    value = extractValue(line, keyDelay.length());
+                    delayMicroSeconds = std::stol(*value);
+                    delete value;
                 } catch (std::invalid_argument &e) {
-                    //Already a default. Not much to do here, maybe erase it?
+                    delete value;
                 }
+            } else if (line.rfind('[', 0) == 0) {
+                currSection = line;
+            }
+            if (currSection == sectionRolls) {
+                key = extractKey(line);
+                value = extractValue(line, 0);
+                if (key != nullptr && value != nullptr) {
+                    savedRolls.emplace(*key, *value);
+                }
+                delete key; delete value;
             }
         }
         file.close();
     }
 }
 
-//DiceModel::~DiceModel() {
-//    savedRolls.clear(); //double frees from either this or the controller's
-//}
+DiceModel::~DiceModel() {
+    savedRolls.clear();
+}
+
+std::string *DiceModel::extractValue(std::string &line, int startAt) {
+    int index = line.find('=', startAt) + 1;
+    std::string *result;
+    if (index == std::string::npos) {
+        return nullptr;
+    }
+    result = new std::string(line.substr(index));
+    return result;
+}
+
+std::string *DiceModel::extractKey(std::string &line) {
+    int index = line.find('=');
+    std::string *result;
+    if (index == std::string::npos) {
+        return nullptr;
+    }
+    result = new std::string(line.substr(0, index));
+    return result;
+}
 
 bool DiceModel::isAcing() const {
     return aces;
@@ -48,18 +85,19 @@ const std::string &DiceModel::getLogPath() const {
     return logPath;
 }
 
-long DiceModel::getDelayNanoSeconds() const {
-    return delayNanoSeconds;
+long DiceModel::getDelay() const {
+    return delayMicroSeconds;
 }
 
-void DiceModel::setDelayNanoSeconds(long delay) {
-    this->delayNanoSeconds = delay;
+void DiceModel::setDelay(long delay) {
+    this->delayMicroSeconds = delay;
     updateConfig(keyDelay, std::to_string(delay), sectionSettings);
 }
 
 void
-DiceModel::updateConfig(const std::string &key, const std::string &newValue,
+DiceModel::updateConfig(const std::string &key, const std::string &value,
                         const std::string &section) {
+    if (section == sectionRolls) savedRolls.emplace(key, value);
     bool inTheRightSection = false, updated = false;
     std::string line;
     std::fstream original;
@@ -75,7 +113,7 @@ DiceModel::updateConfig(const std::string &key, const std::string &newValue,
             } if (inTheRightSection && line.rfind('[', 0) == 0) {
                 break;
             } if (lineIsKey(line, key) && inTheRightSection) {
-                newFile << key << '=' << newValue << std::endl;
+                newFile << key << '=' << value << std::endl;
                 updated = true;
                 inTheRightSection = false;
             } else {
@@ -95,6 +133,7 @@ DiceModel::updateConfig(const std::string &key, const std::string &newValue,
 
 void DiceModel::removeLineFromConfig(const std::string &key,
                                      const std::string &section) {
+    if (section == sectionRolls) savedRolls.erase(key);
     bool inTheRightSection = false, removed = false;
     std::string line;
     std::fstream original;
@@ -127,8 +166,9 @@ void DiceModel::removeLineFromConfig(const std::string &key,
     if (newFile.is_open()) newFile.close();
 }
 
-void DiceModel::addLineToConfig(const std::string &key, const std::string &newValue,
+void DiceModel::addLineToConfig(const std::string &key, const std::string &value,
         const std::string &section) {
+    if (section == sectionRolls) savedRolls.emplace(key, value);
     std::string line;
     std::fstream original;
     std::ofstream newFile;
@@ -138,7 +178,7 @@ void DiceModel::addLineToConfig(const std::string &key, const std::string &newVa
         while (getline(original, line)) {
             newFile << line << std::endl;
             if (line == section) { //the line we want to modify
-                newFile << key << '=' << newValue <<std::endl;
+                newFile << key << '=' << value << std::endl;
             }
         }
         std::remove(CONFIG_PATH);
@@ -166,7 +206,17 @@ bool DiceModel::configContainsKey(const std::string &key) {
     return false; //the key was not found
 }
 
+std::string DiceModel::getSavedRoll(const std::string &key) {
+    if (savedRolls.find(key) != savedRolls.end())
+        return savedRolls[key];
+    return "";
+}
+
 bool DiceModel::lineIsKey(const std::string &line, const std::string &key) {
     return line.rfind(key, 0) == 0 && line.length() > key.length() &&
            line.at(key.length()) == '=';
+}
+
+int DiceModel::getNumSavedRolls() {
+    return savedRolls.size();
 }
