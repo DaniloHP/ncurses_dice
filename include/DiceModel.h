@@ -23,7 +23,7 @@ public:
 
     //functions
     DiceModel();
-//    ~DiceModel();
+    ~DiceModel();
     bool isAcing() const;
     void toggleAces();
     const std::string &getLogPath() const;
