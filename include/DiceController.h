@@ -30,7 +30,6 @@ private:
     std::mt19937 twisterEngine;
     std::string logPath;
 
-
     //functions
     int getRoll(int);
     std::vector<int> *parseRoll(char*);

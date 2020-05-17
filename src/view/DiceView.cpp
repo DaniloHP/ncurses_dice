@@ -8,7 +8,7 @@
 
 #define ENTER 10
 #define BUF_SIZE 40
-#define ROLL_REGEX R"((\d{0,2}[dD]\d+(\s|$))+)"
+#define ROLL_REGEX R"((\d{0,2}[dD]\d+(\s+|$))+)"
 using namespace std;
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
@@ -23,7 +23,6 @@ int  getNumLength(int n);
 void handleChangeRollDelay(WINDOW *setWin, DiceController &controller);
 void handleClearLog(WINDOW *setWin, DiceController &controller);
 void handleToggleAces(WINDOW *setWin, DiceController &controller);
-void freeAllRolls(vector<DiceRoll *> *allRolls);
 void handleSavedRolls(int lastY, DiceController &controller);
 void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller);
 void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
@@ -51,7 +50,6 @@ int main() {
         lastY = 11;
         allRolls = controller.getAllRolls(roll);
         printRolls(allRolls, lastY, controller);
-        freeAllRolls(allRolls);
         setUpWhatDo(lastY, whatDo);
         highlight = redo ? 1 : 0; //if last roll was redo, start with reroll HL'd
         while (true) {
@@ -85,12 +83,6 @@ int main() {
     endwin();
     vector<int>().swap(rollNums);
     return 0;
-}
-
-void freeAllRolls(vector<DiceRoll*> *allRolls) {
-    for (DiceRoll *dr : *allRolls) delete dr;
-    allRolls->clear();
-    delete allRolls;
 }
 
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
@@ -298,6 +290,35 @@ void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update) {
     }
 }
 
+void printSavedRollsAsMenu(WINDOW *win, vector<string> &keys, int &highlight,
+                           int &choice, DiceController controller) {
+    //eventually want to do roll deletion, updating and maybe even adding with this
+    for (int i = 0; i < keys.size(); i++) {
+        if (i == highlight) {
+            wattron(win, A_REVERSE);
+        }
+        wattron(win, A_BOLD);
+        mvwprintw(win, i, 1, "%s: ", keys[i].c_str());
+        wattroff(win, A_BOLD);
+        wprintw(win, controller.getSavedRoll(keys[i]).c_str());
+        wrefresh(win);
+        wattroff(win, A_REVERSE);
+    }
+    choice = wgetch(win);
+    switch (choice) {
+        case KEY_UP:
+            highlight--;
+            highlight = (highlight == -1) ? keys.size() - 1 : highlight;
+            break;
+        case KEY_DOWN:
+            highlight++;
+            highlight = (highlight == keys.size()) ? 0 : highlight;
+            break;
+        default:
+            break;
+    }
+}
+
 void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller) {
     int row = 4;
     echo();
@@ -402,7 +423,8 @@ int getNumLength(int n) {
 }
 
 void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller) {
-    int sum, dieType, reps, numLen, j, totalSum = 0, i = 0;
+    int sum, dieType, reps, numLen, j, k, xMax = getmaxx(stdscr), totalSum = 0, i = 0;
+    int rowsOverflowed = 0;
     WINDOW *die, *statsWin, *totalWin;
     string totalRoll, acesMsg;
     for (const DiceRoll *dr : *allRolls) {
@@ -411,9 +433,13 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
         numLen = getNumLength(dieType);
         reps = dr->getReps();
         totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
-        lastY = 7 + (i * 3);
-        for (j = 0; j < reps; j++) {
+        lastY = 7 + ((rowsOverflowed + i++) * 3);
+        //k is the real iterator that checks for reps, j is for visual purposes
+        for (k = 0, j = 0; k < reps; j++, k++) {
             usleep(controller.getDelay());
+            if (5 + (j * (numLen + 3)) > xMax - 12) {
+                j = 0, lastY += 3, rowsOverflowed++;
+            }
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
             totalRoll += to_string(dr->getAt(j)) + " ";
@@ -430,11 +456,15 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
         mvwprintw(statsWin, 1, 0, "<-- %dd%d", reps, dieType);
         wrefresh(statsWin);
         delwin(statsWin);
-        i++;
+        delete dr;
     }
-    totalWin = newwin(1, 32, lastY + 3, 5);
-    mvwprintw(totalWin, 0, 0, "Sum of all rolls: %d", totalSum);
-    wrefresh(totalWin);
-    delwin(totalWin);
+    if (totalSum != sum) {
+        totalWin = newwin(1, 32, lastY + 3, 5);
+        mvwprintw(totalWin, 0, 0, "Sum of all rolls: %d", totalSum);
+        wrefresh(totalWin);
+        delwin(totalWin);
+    }
+    allRolls->clear();
+    delete allRolls;
     controller.logRolls(totalRoll);
 }
