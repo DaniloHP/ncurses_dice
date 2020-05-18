@@ -9,11 +9,10 @@
 #define ENTER 10
 #define BUF_SIZE 40
 #define ROLL_REGEX R"((\d{0,2}[dD]\d+(\s+|$))+)"
-using namespace std;
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
         int size, short offset);
-void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
+void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
                    DiceController &controller);
 void setUpWhatDo(int lastY, WINDOW *&whatDo);
@@ -36,8 +35,8 @@ int main() {
     DiceController controller;
     char roll[BUF_SIZE];
     int lastY, choice, highlight;
-    vector<int> rollNums;
-    vector<DiceRoll*> *allRolls;
+    std::vector<int> rollNums;
+    std::vector<DiceRoll*> *allRolls;
     const char *whatDoChoices[] = {
             (const char*)"Roll again", (const char*)"Reroll this roll",
             (const char*)"Saved rolls", (const char*)"Settings",
@@ -81,14 +80,14 @@ int main() {
     delwin(whatDo);
     delwin(mainScreen);
     endwin();
-    vector<int>().swap(rollNums);
+    rollNums.clear();
     return 0;
 }
 
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         DiceController &controller) { ///just make  ^^^^ into a string
     int xMax = getmaxx(stdscr);
-    string rollValue;
+    std::string rollValue;
     if (inWin == nullptr) {
         inWin = newwin(4, xMax - 12, 2, 5);
     }
@@ -100,7 +99,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         curs_set(1);
         mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
         rollValue = controller.getSavedRoll(roll);
-        while (!regex_match(roll, regex(ROLL_REGEX)) && rollValue.empty()) {
+        while (!regex_match(roll, std::regex(ROLL_REGEX)) && rollValue.empty()) {
             indicateError(inWin, 1, 1, "Invalid roll format", 2, 1);
             box(inWin, 0, 0);
             mvwprintw(inWin, 1, 1, "Enter your roll:");
@@ -229,7 +228,7 @@ void handleSavedRolls(int lastY, DiceController &controller) {
 }
 
 void printSavedRolls(int lastY, DiceController &controller) {
-    vector<string> *keys = controller.getKeys();
+    std::vector<std::string> *keys = controller.getKeys();
     int i = 1, numRolls = keys->size(), choice = 0;
     WINDOW *rollsListWin = newwin(numRolls + 3, 64, lastY, 5);
     box(rollsListWin, 0, 0);
@@ -267,7 +266,7 @@ void collectSavedRollInput(char *name, char *value, int lastY) {
     mvwgetnstr(savedRollInputWin, 1, 29, name, 15);
     mvwprintw(savedRollInputWin, 2, 1, "Enter the roll value: ");
     mvwgetnstr(savedRollInputWin, 2, 23, value, BUF_SIZE);
-    while (!regex_match(value, regex(ROLL_REGEX))) {
+    while (!regex_match(value, std::regex(ROLL_REGEX))) {
         indicateError(savedRollInputWin, 2, 1, "Invalid roll format", 2, 1);
         mvwprintw(savedRollInputWin, 1, 1, "Enter the name of the roll: %s", name);
         mvwprintw(savedRollInputWin, 2, 1, "Enter the roll value: ");
@@ -282,7 +281,7 @@ void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update) {
     char rollName[16];
     char value[BUF_SIZE];
     collectSavedRollInput(rollName, value, lastY);
-    string name = rollName, val = value;
+    std::string name = rollName, val = value;
     if (update) {
         controller.updateRoll(name, val);
     } else {
@@ -290,7 +289,7 @@ void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update) {
     }
 }
 
-void printSavedRollsAsMenu(WINDOW *win, vector<string> &keys, int &highlight,
+void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &keys, int &highlight,
                            int &choice, DiceController controller) {
     //eventually want to do roll deletion, updating and maybe even adding with this
     for (int i = 0; i < keys.size(); i++) {
@@ -331,7 +330,7 @@ void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller) {
     curs_set(1);
     keypad(rollsWin, true);
     mvwgetnstr(rollsWin, row, 29, rollToRm, 15);
-    string key = rollToRm;
+    std::string key = rollToRm;
     if (!controller.removeRoll(key)) {
         indicateError(rollsWin, row, 1, "Roll not found", row, 1);
     }
@@ -381,13 +380,13 @@ void handleChangeRollDelay(WINDOW *setWin, DiceController &controller) {
     box(setWin, 0, 0);
     mvwgetnstr(setWin, 1, 23, newVal, 10);
     try {
-        long millis = stol(newVal);
+        long millis = std::stol(newVal);
         if (millis >= 0) {
             controller.setDelay(millis * 1000);
         } else {
-            throw invalid_argument("No values less than 0.");
+            throw std::invalid_argument("No values less than 0.");
         }
-    } catch (invalid_argument &e) {
+    } catch (std::invalid_argument &e) {
         indicateError(setWin, 1, 1, "Invalid input",1, 1);
     }
 }
@@ -422,17 +421,17 @@ int getNumLength(int n) {
     }
 }
 
-void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller) {
+void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller) {
     int sum, dieType, reps, numLen, j, k, xMax = getmaxx(stdscr), totalSum = 0, i = 0;
     int rowsOverflowed = 0;
     WINDOW *die, *statsWin, *totalWin;
-    string totalRoll, acesMsg;
+    std::string totalRoll, acesMsg;
     for (const DiceRoll *dr : *allRolls) {
         sum = dr->getSum();
         dieType = dr->getDieType();
         numLen = getNumLength(dieType);
         reps = dr->getReps();
-        totalRoll += to_string(reps) + "d" + to_string(dieType) + ": ";
+        totalRoll += std::to_string(reps) + "d" + std::to_string(dieType) + ": ";
         lastY = 7 + ((rowsOverflowed + i++) * 3);
         //k is the real iterator that checks for reps, j is for visual purposes
         for (k = 0, j = 0; k < reps; j++, k++) {
@@ -442,7 +441,7 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
             }
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            totalRoll += to_string(dr->getAt(j)) + " ";
+            totalRoll += std::to_string(dr->getAt(j)) + " ";
             mvwprintw(die, 1, 1, "%d", dr->getAt(j));
             wrefresh(die); //dr->getAt(j) is the actual value of the roll
             delwin(die);
@@ -450,7 +449,7 @@ void printRolls(vector<DiceRoll*> *allRolls, int &lastY, DiceController &control
         totalSum += sum;
         totalRoll += '\n';
         statsWin = newwin(2, 32, lastY, (7 + (j * (numLen + 3))));
-        acesMsg = "| " + to_string(dr->getNumAces()) + " ace(s)";
+        acesMsg = "| " + std::to_string(dr->getNumAces()) + " ace(s)";
         mvwprintw(statsWin, 0, 0, "Sum: %d %s", sum, (controller.isAcing() ?
                                                       acesMsg.c_str() : ""));
         mvwprintw(statsWin, 1, 0, "<-- %dd%d", reps, dieType);

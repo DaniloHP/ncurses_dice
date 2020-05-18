@@ -4,12 +4,11 @@
 #include <fstream>
 
 DiceModel::DiceModel() {
-    std::string line, *key, *value;
-    key = value = nullptr;
+    std::string currSection, line, *key, *value;
     std::ifstream file;
     file.open(CONFIG_PATH);
-    std::string currSection;
     //defaults, in case not found in the file
+    value = nullptr;
     aces = false;
     logPath = DEFAULT_LOG_PATH;
     delayMicroSeconds = DEFAULT_DELAY;
