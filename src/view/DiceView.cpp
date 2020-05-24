@@ -10,8 +10,8 @@
 #define BUF_SIZE 40
 #define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
 
-void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
-        int size, short offset);
+void printMenu(int &highlight, int &input, WINDOW *win, const char **choices,
+               int size, short offset);
 void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
                    DiceController &controller);
@@ -25,10 +25,14 @@ void handleToggleAces(WINDOW *setWin, DiceController &controller);
 void handleSavedRolls(int lastY, DiceController &controller);
 void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller);
 void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
-void indicateError(WINDOW *const &window, int problemY, int problemX,
-                   const char *msg, int originalY, int originalX);
+void
+indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
+              int originalX, const char *msg);
 
 void printSavedRolls(int lastY, DiceController &controller);
+
+void boundsCheckMenu(int numChoices, int &highlight,
+                     const int input);
 
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
@@ -100,7 +104,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
         rollValue = controller.getSavedRoll(roll);
         while (!regex_match(roll, std::regex(ROLL_REGEX)) && rollValue.empty()) {
-            indicateError(inWin, 1, 1, "Invalid roll format", 2, 1);
+            indicateError(inWin, 1, 1, 2, 1, "Invalid roll format");
             box(inWin, 0, 0);
             mvwprintw(inWin, 1, 1, "Enter your roll:");
             mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
@@ -122,8 +126,9 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
 
 }
 
-void indicateError(WINDOW *const &window, int problemY, int problemX,
-                   const char *msg, int originalY, int originalX) {
+void
+indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
+              int originalX, const char *msg) {
     wmove(window, problemY, problemX);
     curs_set(0);
     wclrtoeol(window);
@@ -165,7 +170,7 @@ void setUpWhatDo(int lastY, WINDOW *&whatDo) {
     wrefresh(whatDo);
 }
 
-void printMenu(int& highlight, int& choice, WINDOW* win, const char **choices,
+void printMenu(int& highlight, int& input, WINDOW* win, const char **choices,
                int size, short offset) {
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
@@ -175,164 +180,61 @@ void printMenu(int& highlight, int& choice, WINDOW* win, const char **choices,
         wrefresh(win);
         wattroff(win, A_REVERSE);
     }
-    choice = wgetch(win);
-    switch (choice) {
-        case KEY_UP:
-            highlight--;
-            highlight = (highlight == -1) ? size - 1 : highlight;
-            break;
-        case KEY_DOWN:
-            highlight++;
-            highlight = (highlight == size) ? 0 : highlight;
-            break;
-        default:
-            break;
+    input = wgetch(win);
+    boundsCheckMenu(size, highlight, input);
+}
+
+void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &choices,
+                           int &highlight, int &input,
+                           DiceController &controller, int &lastY) {
+    while (true) {
+        for (int i = 0; i < choices.size(); i++) {
+            if (i == highlight) {
+                wattron(win, A_REVERSE);
+            }
+            if (controller.savedRollExists(choices[i])) {
+                wattron(win, A_BOLD);
+                mvwprintw(win, i + 1, 1, "%s: ", choices[i].c_str());
+                wattroff(win, A_BOLD);
+                wprintw(win, controller.getSavedRoll(choices[i]).c_str());
+            } else { //either "New roll..." or "Exit saved rolls"
+                mvwprintw(win, i + 1, 1, choices[i].c_str());
+            }
+            wrefresh(win);
+            wattroff(win, A_REVERSE);
+        }
+        input = wgetch(win);
+        boundsCheckMenu(choices.size(), highlight, input);
+        if (input == ENTER) {
+            if (highlight == 5) break;
+            else if (highlight < controller.getKeys()->size()) {
+                WINDOW *optionsWin = newwin(1, 46, lastY + 1, 46);
+                mvwprintw(optionsWin, 0, 1, "Delete Rename Redefine");
+                wrefresh(optionsWin);
+                delwin(optionsWin);
+            }
+        }
     }
 }
 
 void handleSavedRolls(int lastY, DiceController &controller) {
-    int highlight, choice;
-    highlight = choice = 0;
-    const char *choices[] = {
-            (const char *)"Add a new roll", (const char *)"Update a roll",
-            (const char *)"List saved rolls", (const char *)"Remove a roll",
-            (const char *)"Exit saved rolls"};
-    int numChoices = 5;
-    WINDOW* rollsWin = newwin(numChoices + 2, 46, lastY + 4, 46);
+    int highlight, input;
+    auto choices = controller.getKeys();
+    choices->push_back("New roll...");
+    choices->push_back("Exit saved rolls");
+    highlight = input = 0;
+    int numChoices = controller.getKeys()->size();
+    WINDOW* rollsWin = newwin(numChoices + 4, 46, lastY + 4, 46);
+    lastY += numChoices + 7;
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
-    while (true) {
-        wclear(rollsWin);
-        box(rollsWin, 0, 0);
-        printMenu(highlight, choice, rollsWin, choices, numChoices, 1);
-        if (choice == 10) { //use pressed enter
-            if (highlight == 0) { //new roll
-                handleNewOrUpdateRoll(lastY + 12, controller, false);
-            } else if (highlight == 1) { //update roll
-                handleNewOrUpdateRoll(lastY + 12, controller, true);
-            } else if (highlight == 2) { //list rolls
-                printSavedRolls(lastY + 12, controller);
-            } else if (highlight == 3) { //remove roll
-                handleRemoveRoll(rollsWin, controller);
-            } else if (highlight == numChoices - 1) { //exit saved rolls
-                break;
-            }
-            curs_set(0);
-            noecho();
-        }
+    if (!choices->empty()) {
+        printSavedRollsAsMenu(rollsWin, *choices, highlight, input,
+                              controller, lastY);
     }
     wclear(rollsWin);
     wrefresh(rollsWin);
     delwin(rollsWin);
-}
-
-void printSavedRolls(int lastY, DiceController &controller) {
-    std::vector<std::string> *keys = controller.getKeys();
-    int i = 1, numRolls = keys->size(), choice = 0;
-    WINDOW *rollsListWin = newwin(numRolls + 3, 64, lastY, 5);
-    box(rollsListWin, 0, 0);
-    for (const auto &roll : *keys) {
-        wattron(rollsListWin, A_BOLD);
-        mvwprintw(rollsListWin, i++, 1, "%s: ", roll.c_str());
-        wattroff(rollsListWin, A_BOLD);
-        wprintw(rollsListWin, controller.getSavedRoll(roll).c_str());
-    }
-    keys->clear();
-    delete keys;
-    wattron(rollsListWin, A_REVERSE);
-    mvwprintw(rollsListWin, numRolls + 1, 1, "Return");
-    wattroff(rollsListWin, A_REVERSE);
-    wrefresh(rollsListWin);
-    keypad(rollsListWin, true);
-    curs_set(0);
-    while (choice != ENTER) {
-        choice = wgetch(rollsListWin);
-    }
-    wclear(rollsListWin);
-    wrefresh(rollsListWin);
-    delwin(rollsListWin);
-}
-
-void collectSavedRollInput(char *name, char *value, int lastY) {
-    int xMax = getmaxx(stdscr);
-    WINDOW *savedRollInputWin = newwin(4, xMax - 12, lastY, 5);
-    box(savedRollInputWin, 0, 0);
-    curs_set(1);
-    echo();
-    mvwprintw(savedRollInputWin, 1, 1, "Enter the name of the roll: ");
-    keypad(savedRollInputWin, true);
-    wrefresh(savedRollInputWin);
-    mvwgetnstr(savedRollInputWin, 1, 29, name, 15);
-    mvwprintw(savedRollInputWin, 2, 1, "Enter the roll value: ");
-    mvwgetnstr(savedRollInputWin, 2, 23, value, BUF_SIZE);
-    while (!regex_match(value, std::regex(ROLL_REGEX))) {
-        indicateError(savedRollInputWin, 2, 1, "Invalid roll format", 2, 1);
-        mvwprintw(savedRollInputWin, 1, 1, "Enter the name of the roll: %s", name);
-        mvwprintw(savedRollInputWin, 2, 1, "Enter the roll value: ");
-        mvwgetnstr(savedRollInputWin, 2, 23, value, BUF_SIZE);
-    }
-    wclear(savedRollInputWin);
-    wrefresh(savedRollInputWin);
-    delwin(savedRollInputWin);
-}
-
-void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update) {
-    char rollName[16];
-    char value[BUF_SIZE];
-    collectSavedRollInput(rollName, value, lastY);
-    std::string name = rollName, val = value;
-    if (update) {
-        controller.updateRoll(name, val);
-    } else {
-        controller.addRoll(name, val);
-    }
-}
-
-void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &keys, int &highlight,
-                           int &choice, DiceController controller) {
-    //eventually want to do roll deletion, updating and maybe even adding with this
-    for (int i = 0; i < keys.size(); i++) {
-        if (i == highlight) {
-            wattron(win, A_REVERSE);
-        }
-        wattron(win, A_BOLD);
-        mvwprintw(win, i, 1, "%s: ", keys[i].c_str());
-        wattroff(win, A_BOLD);
-        wprintw(win, controller.getSavedRoll(keys[i]).c_str());
-        wrefresh(win);
-        wattroff(win, A_REVERSE);
-    }
-    choice = wgetch(win);
-    switch (choice) {
-        case KEY_UP:
-            highlight--;
-            highlight = (highlight == -1) ? keys.size() - 1 : highlight;
-            break;
-        case KEY_DOWN:
-            highlight++;
-            highlight = (highlight == keys.size()) ? 0 : highlight;
-            break;
-        default:
-            break;
-    }
-}
-
-void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller) {
-    int row = 4;
-    echo();
-    char rollToRm[16];
-    wmove(rollsWin, row, 1);
-    wclrtoeol(rollsWin);
-    mvwprintw(rollsWin, row, 1, "Name of the roll to remove: ");
-    box(rollsWin, 0, 0);
-    wrefresh(rollsWin);
-    curs_set(1);
-    keypad(rollsWin, true);
-    mvwgetnstr(rollsWin, row, 29, rollToRm, 15);
-    std::string key = rollToRm;
-    if (!controller.removeRoll(key)) {
-        indicateError(rollsWin, row, 1, "Roll not found", row, 1);
-    }
 }
 
 void handleSettings(int lastY, DiceController &controller) {
@@ -386,7 +288,7 @@ void handleChangeRollDelay(WINDOW *setWin, DiceController &controller) {
             throw std::invalid_argument("No values less than 0.");
         }
     } catch (std::invalid_argument &e) {
-        indicateError(setWin, 1, 1, "Invalid input",1, 1);
+        indicateError(setWin, 1, 1, 1, 1, "Invalid input");
     }
 }
 
@@ -466,4 +368,20 @@ void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &co
     allRolls->clear();
     delete allRolls;
     controller.logRolls(totalRoll);
+}
+
+void boundsCheckMenu(int numChoices, int &highlight,
+                     const int input) {
+    switch (input) {
+        case KEY_UP:
+            highlight--;
+            highlight = (highlight == -1) ? numChoices - 1 : highlight;
+            break;
+        case KEY_DOWN:
+            highlight++;
+            highlight = (highlight == numChoices) ? 0 : highlight;
+            break;
+        default:
+            break;
+    }
 }

@@ -22,6 +22,7 @@ public:
     bool updateRoll(const std::string &key, const std::string &newValue);
     std::string getSavedRoll(const std::string &key);
     std::vector<std::string> *getKeys();
+    bool savedRollExists(const std::string &key);
 
 private:
     //vars

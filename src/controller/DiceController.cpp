@@ -116,3 +116,7 @@ std::string DiceController::getSavedRoll(const std::string &key) {
 std::vector<std::string> *DiceController::getKeys() {
     return model.getKeys();
 }
+
+bool DiceController::savedRollExists(const std::string &key) {
+    return !model.getSavedRoll(key).empty();
+}
