@@ -8,7 +8,7 @@
 
 #define ENTER 10
 #define BUF_SIZE 40
-#define ROLL_REGEX R"((\d{0,2}[dD]\d+(\s+|$))+)"
+#define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
 
 void printMenu(int &highlight, int &choice, WINDOW *win, const char **choices,
         int size, short offset);
@@ -85,7 +85,7 @@ int main() {
 }
 
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
-        DiceController &controller) { ///just make  ^^^^ into a string
+        DiceController &controller) {
     int xMax = getmaxx(stdscr);
     std::string rollValue;
     if (inWin == nullptr) {
@@ -107,10 +107,9 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
             rollValue = controller.getSavedRoll(roll);
         }
         if (!rollValue.empty()) {
-            int rollNameLen = strlen(roll);
             strncpy(roll, rollValue.c_str(), BUF_SIZE);
             redo = true;
-            mvwprintw(inWin, 2, rollNameLen + 2, "(%s)", roll);
+            mvwprintw(inWin, 2, strlen(roll) + 2, "(%s)", roll);
             wrefresh(inWin);
         }
     } if (redo) {
@@ -427,23 +426,24 @@ void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &co
     WINDOW *die, *statsWin, *totalWin;
     std::string totalRoll, acesMsg;
     for (const DiceRoll *dr : *allRolls) {
-        sum = dr->getSum();
-        dieType = dr->getDieType();
+        sum = dr->sum;
+        dieType = dr->dieType;
         numLen = getNumLength(dieType);
-        reps = dr->getReps();
+        reps = dr->reps;
         totalRoll += std::to_string(reps) + "d" + std::to_string(dieType) + ": ";
         lastY = 7 + ((rowsOverflowed + i++) * 3);
         //k is the real iterator that checks for reps, j is for visual purposes
         for (k = 0, j = 0; k < reps; j++, k++) {
             usleep(controller.getDelay());
             if (5 + (j * (numLen + 3)) > xMax - 12) {
+ //left padding ^    ^^^^^^^^^^^^^^^^ width of all the rolls in the row
                 j = 0, lastY += 3, rowsOverflowed++;
             }
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            totalRoll += std::to_string(dr->getAt(j)) + " ";
-            mvwprintw(die, 1, 1, "%d", dr->getAt(j));
-            wrefresh(die); //dr->getAt(j) is the actual value of the roll
+            totalRoll += std::to_string(dr->getAt(k)) + " ";
+            mvwprintw(die, 1, 1, "%d", dr->getAt(k));
+            wrefresh(die); //dr->getAt(k) is the actual value of the roll
             delwin(die);
         }
         totalSum += sum;

@@ -65,16 +65,16 @@ std::vector<DiceRoll*> *DiceController::getAllRolls(char *roll) {
         sum = 0;
         dieType = rollNums->at(i + 1);
         reps = origReps = rollNums->at(i);
-        currRoll->setDieType(dieType);
-        currRoll->setOrigReps(origReps);
+        currRoll->dieType = dieType;
+        currRoll->origReps = origReps;
         for (j = 0; j < reps; j++) {
             rollVal = getRoll(dieType);
             currRoll->pushBack(rollVal);
             sum += rollVal;
             if (aces && rollVal == dieType && dieType != 1) reps++;
         }
-        currRoll->setReps(reps);
-        currRoll->setSum(sum);
+        currRoll->reps = reps;
+        currRoll->sum = sum;
         allRolls->push_back(currRoll);
     }
     delete rollNums;

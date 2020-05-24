@@ -6,9 +6,9 @@
 #include <vector>
 
 #ifdef DEBUG
-    #define CONFIG_PATH "../config.ini"
+    #define DEFAULT_CONFIG_PATH "../config.ini"
 #else
-    #define CONFIG_PATH "config.ini"
+    #define DEFAULT_CONFIG_PATH "config.ini"
 #endif
 
 #define DEFAULT_LOG_PATH "RollHistory.txt"
@@ -29,7 +29,7 @@ public:
     const std::string &getLogPath() const;
     long getDelay() const;
     void setDelay(long delay);
-    bool configContainsKey(const std::string &key);
+    static bool configContainsKey(const std::string &key);
     bool addLineToConfig(const std::string &key, const std::string &value,
                          const std::string &section);
     bool updateConfig(const std::string &key, const std::string &value,
@@ -49,9 +49,11 @@ private:
     std::map<std::string, std::string> savedRolls;
 
     //functions
-    bool lineIsKey(const std::string &line, const std::string &key);
-    std::string *extractValue(std::string &line, int startAt);
-    std::string *extractKey(std::string &line);
+    static bool lineIsKey(const std::string &line, const std::string &key);
+    static std::string *extractValue(std::string &line, int startAt);
+    static std::string *extractKey(std::string &line);
+
+    void generateDefaultFile();
 };
 
 #endif //guard

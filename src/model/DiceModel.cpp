@@ -6,7 +6,7 @@
 DiceModel::DiceModel() {
     std::string currSection, line, *key, *value;
     std::ifstream file;
-    file.open(CONFIG_PATH);
+    file.open(DEFAULT_CONFIG_PATH);
     //defaults, in case not found in the file
     value = nullptr;
     aces = false;
@@ -43,6 +43,8 @@ DiceModel::DiceModel() {
             }
         }
         file.close();
+    } else {
+        generateDefaultFile();
     }
 }
 
@@ -100,7 +102,7 @@ DiceModel::updateConfig(const std::string &key, const std::string &value,
     std::string line;
     std::fstream original;
     std::ofstream newFile;
-    original.open(CONFIG_PATH, std::ios::out | std::ios::in);
+    original.open(DEFAULT_CONFIG_PATH, std::ios::out | std::ios::in);
     newFile.open(DEFAULT_TEMP_PATH, std::ios::out);
     if (original.is_open() && newFile.is_open()) {
         while (getline(original, line)) {
@@ -119,8 +121,8 @@ DiceModel::updateConfig(const std::string &key, const std::string &value,
             }
         }
         if (updated) {
-            std::remove(CONFIG_PATH);
-            std::rename(DEFAULT_TEMP_PATH, CONFIG_PATH);
+            std::remove(DEFAULT_CONFIG_PATH);
+            std::rename(DEFAULT_TEMP_PATH, DEFAULT_CONFIG_PATH);
         } else {
             std::remove(DEFAULT_TEMP_PATH);
         }
@@ -137,7 +139,7 @@ bool DiceModel::removeLineFromConfig(const std::string &key,
     std::string line;
     std::fstream original;
     std::ofstream newFile;
-    original.open(CONFIG_PATH, std::ios::out | std::ios::in);
+    original.open(DEFAULT_CONFIG_PATH, std::ios::out | std::ios::in);
     newFile.open(DEFAULT_TEMP_PATH, std::ios::out);
     if (original.is_open() && newFile.is_open()) {
         while (getline(original, line)) {
@@ -155,8 +157,8 @@ bool DiceModel::removeLineFromConfig(const std::string &key,
             }
         }
         if (removed) {
-            std::remove(CONFIG_PATH);
-            std::rename(DEFAULT_TEMP_PATH, CONFIG_PATH);
+            std::remove(DEFAULT_CONFIG_PATH);
+            std::rename(DEFAULT_TEMP_PATH, DEFAULT_CONFIG_PATH);
         } else {
             std::remove(DEFAULT_TEMP_PATH);
         }
@@ -173,7 +175,7 @@ bool DiceModel::addLineToConfig(const std::string &key, const std::string &value
     std::string line;
     std::fstream original;
     std::ofstream newFile;
-    original.open(CONFIG_PATH, std::ios::out | std::ios::in);
+    original.open(DEFAULT_CONFIG_PATH, std::ios::out | std::ios::in);
     newFile.open(DEFAULT_TEMP_PATH, std::ios::out);
     if (original.is_open() && newFile.is_open() && !configContainsKey(key)) {
         while (getline(original, line)) {
@@ -183,8 +185,8 @@ bool DiceModel::addLineToConfig(const std::string &key, const std::string &value
                 added = true;
             }
         }
-        std::remove(CONFIG_PATH);
-        std::rename(DEFAULT_TEMP_PATH, CONFIG_PATH);
+        std::remove(DEFAULT_CONFIG_PATH);
+        std::rename(DEFAULT_TEMP_PATH, DEFAULT_CONFIG_PATH);
     }
     if (original.is_open()) original.close();
     if (newFile.is_open()) newFile.close();
@@ -194,7 +196,7 @@ bool DiceModel::addLineToConfig(const std::string &key, const std::string &value
 bool DiceModel::configContainsKey(const std::string &key) {
     std::string line;
     std::ifstream file;
-    file.open(CONFIG_PATH);
+    file.open(DEFAULT_CONFIG_PATH);
     if (file.is_open()) {
         while (getline(file, line)) {
             if (lineIsKey(line, key)) {
@@ -226,4 +228,14 @@ std::vector<std::string> *DiceModel::getKeys() {
         keySet->push_back(kv.first);
     }
     return keySet;
+}
+
+void DiceModel::generateDefaultFile() {
+    std::ofstream file(DEFAULT_CONFIG_PATH);
+    file << sectionSettings << std::endl;
+    file << keyAces << '=' << '0' << std::endl;
+    file << keyDelay << '=' << DEFAULT_DELAY << std::endl;
+    file << keyLogPath << '=' << DEFAULT_LOG_PATH << std::endl;
+    file << sectionRolls << std::endl;
+    file.close();
 }

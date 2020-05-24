@@ -2,38 +2,38 @@
 #define DICE_ROLL_H
 #include <vector>
 
-class DiceRoll {
+struct DiceRoll {
+
 private:
-    int sum, dieType, reps, origReps, numAces;
     std::vector<int> *rolls;
 
 public:
+    int sum, dieType, reps, origReps;
 
-    DiceRoll();
+    DiceRoll() {
+        sum = dieType = reps = origReps;
+        rolls = new std::vector<int>();
+    }
 
-    ~DiceRoll();
+    ~DiceRoll() {
+        rolls->clear();
+        delete rolls;
+    }
 
-    int getSum() const;
+    int getNumAces() const {
+        return reps - origReps;
+    }
 
-    void setSum(int nSum);
+    int getAt(int i) const  {
+        if (i < rolls->size())
+            return rolls->at(i);
+        else
+            return -1;
+    }
 
-    int getDieType() const;
-
-    void setDieType(int nDieType);
-
-    int getReps() const;
-
-    void setReps(int nReps);
-
-    int getOrigReps() const;
-
-    void setOrigReps(int nOrigReps);
-
-    int getNumAces() const;
-
-    int getAt(int i) const;
-
-    void pushBack(int val);
+    void pushBack(int val) {
+        rolls->push_back(val);
+    }
 };
 
 #endif //NCURSES_DICEROLL_H
