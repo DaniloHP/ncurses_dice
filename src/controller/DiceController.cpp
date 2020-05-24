@@ -126,7 +126,7 @@ bool DiceController::isValidRollVal(const char *roll) {
 }
 
 bool DiceController::isValidRollName(const char *key) {
-    return !savedRollExists(key);
+    return !savedRollExists(key) && !isValidRollVal(key);
 }
 
 int DiceController::getNumRolls() {

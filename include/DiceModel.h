@@ -11,6 +11,10 @@
     #define DEFAULT_CONFIG_PATH "config.ini"
 #endif
 
+#define ROLL_VAL_MAX 40
+#define ROLL_NAME_MAX 16
+#define ROLL_TOTAL_MAX ((ROLL_VAL_MAX) + (ROLL_NAME_MAX))
+
 #define DEFAULT_LOG_PATH "RollHistory.txt"
 #define DEFAULT_TEMP_PATH "temp"
 #define DEFAULT_DELAY 80000
