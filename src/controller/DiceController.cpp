@@ -120,3 +120,15 @@ std::vector<std::string> *DiceController::getKeys() {
 bool DiceController::savedRollExists(const std::string &key) {
     return !model.getSavedRoll(key).empty();
 }
+
+bool DiceController::isValidRollVal(const char *roll) {
+    return regex_match(roll, std::regex(ROLL_REGEX));
+}
+
+bool DiceController::isValidRollName(const char *key) {
+    return !savedRollExists(key);
+}
+
+int DiceController::getNumRolls() {
+    return model.getNumRolls();
+}

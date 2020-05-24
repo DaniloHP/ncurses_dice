@@ -97,7 +97,9 @@ void DiceModel::setDelay(long delay) {
 bool
 DiceModel::updateConfig(const std::string &key, const std::string &value,
                         const std::string &section) {
-    if (section == sectionRolls) savedRolls.emplace(key, value);
+    if (section == sectionRolls) {
+        savedRolls[key] = value;
+    }
     bool inTheRightSection = false, updated = false;
     std::string line;
     std::fstream original;
@@ -238,4 +240,8 @@ void DiceModel::generateDefaultFile() {
     file << keyLogPath << '=' << DEFAULT_LOG_PATH << std::endl;
     file << sectionRolls << std::endl;
     file.close();
+}
+
+int DiceModel::getNumRolls() {
+    return savedRolls.size();
 }

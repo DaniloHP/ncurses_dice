@@ -37,6 +37,7 @@ public:
     bool removeLineFromConfig(const std::string &key, const std::string &section);
     std::string getSavedRoll(const std::string &key);
     std::vector<std::string> *getKeys();
+    int getNumRolls();
 
 private:
     //vars

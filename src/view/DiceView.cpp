@@ -1,15 +1,13 @@
 #include <ncurses.h>
-#include <regex>
-#include <vector>
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
 #include <fstream>
+#include <algorithm>
 #include "../../include/DiceController.h"
 
 #define ENTER 10
 #define BUF_SIZE 40
-#define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
 
 void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
 void printVerticalMenu(int &highlight, int &input, WINDOW *win, const char **choices,
@@ -26,16 +24,22 @@ void handleChangeRollDelay(WINDOW *setWin, DiceController &controller);
 void handleClearLog(WINDOW *setWin, DiceController &controller);
 void handleToggleAces(WINDOW *setWin, DiceController &controller);
 void handleSavedRolls(int lastY, DiceController &controller);
-void handleRemoveRoll(WINDOW *rollsWin, DiceController &controller);
-void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
-void
-indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
+void indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
               int originalX, const char *msg);
-void printSavedRolls(int lastY, DiceController &controller);
 void verticalBoundsCheckMenu(int numChoices, int &highlight,
                              const int input);
 void horizontalBoundsCheckMenu(int numChoices, int &highlight,
                              const int input);
+
+void handleRollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller);
+
+void
+handleRollRename(WINDOW *optWin, int &highlight, DiceController &controller,
+                 std::vector<std::string> &choices);
+
+void
+handleNewRoll(WINDOW *rollsWin, int &highlight, DiceController &controller, std::vector<std::string> &choices);
+
 std::ofstream errorLog("Errors.log");
 
 int main() {
@@ -107,7 +111,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         curs_set(1);
         mvwgetnstr(inWin, 2, 1, roll, BUF_SIZE);
         rollValue = controller.getSavedRoll(roll);
-        while (!regex_match(roll, std::regex(ROLL_REGEX)) && rollValue.empty()) {
+        while (!controller.isValidRollVal(roll) && rollValue.empty()) {
             indicateError(inWin, 1, 1, 2, 1, "Invalid roll format");
             box(inWin, 0, 0);
             mvwprintw(inWin, 1, 1, "Enter your roll:");
@@ -204,43 +208,52 @@ void printHorizontalMenu(int& highlight, int& input, WINDOW* win, const char **c
     horizontalBoundsCheckMenu(size, highlight, input);
 }
 
-void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &choices,
+void printSavedRollsAsMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
                            int &highlight, int &input,
                            DiceController &controller, int &lastY) {
     while (true) {
-        wclear(win);
-        box(win, 0, 0);
+        wclear(rollsWin);
+        box(rollsWin, 0, 0);
         for (int i = 0; i < choices.size(); i++) {
             if (i == highlight) {
-                wattron(win, A_REVERSE);
+                wattron(rollsWin, A_REVERSE);
             }
             if (controller.savedRollExists(choices[i])) {
-                wattron(win, A_BOLD);
-                mvwprintw(win, i + 1, 1, "%s: ", choices[i].c_str());
-                wattroff(win, A_BOLD);
-                wprintw(win, controller.getSavedRoll(choices[i]).c_str());
+                wattron(rollsWin, A_BOLD);
+                mvwprintw(rollsWin, i + 1, 1, "%s: ", choices[i].c_str());
+                wattroff(rollsWin, A_BOLD);
+                wprintw(rollsWin, controller.getSavedRoll(choices[i]).c_str());
             } else { //either "New roll..." or "Exit saved rolls"
-                mvwprintw(win, i + 1, 1, choices[i].c_str());
+                mvwprintw(rollsWin, i + 1, 1, choices[i].c_str());
             }
-            wrefresh(win);
-            wattroff(win, A_REVERSE);
+            wrefresh(rollsWin);
+            wattroff(rollsWin, A_REVERSE);
         }
-        input = wgetch(win);
+        input = wgetch(rollsWin);
         verticalBoundsCheckMenu(choices.size(), highlight, input);
         if (input == ENTER) {
             if (highlight == choices.size() - 1) break;
-            else if (highlight < controller.getKeys()->size()) {
+            else if (highlight < controller.getNumRolls()) {
                 WINDOW *optionsWin = newwin(1, 46, lastY + 1, 46);
                 keypad(optionsWin, true);
-                const char *subChoices[] = { "Delete", "Rename", "Redefine", "Cancel"};
+                const char *subChoices[] = { "Rename", "Redefine", "Delete", "Cancel"};
                 int subHL = 0, subInp = 0;
                 while (true) {
                     printHorizontalMenu(subHL, subInp, optionsWin, subChoices,
                                         4, 0);
                     if (subInp == ENTER) {
-                        if (subHL == 0) { //delete
+                        if (subHL == 2) { //delete
                             controller.removeRoll(choices[highlight]);
                             choices.erase(choices.begin() + highlight);
+                            wclear(rollsWin);
+                            wrefresh(rollsWin);
+                            wresize(rollsWin, choices.size() + 2, 46);
+                            lastY--;
+                        } else if (subHL == 1) {
+                            handleRollRedefine(rollsWin, highlight, controller);
+                        } else if (subHL == 0) {
+                            handleRollRename(optionsWin, highlight, controller,
+                                             choices);
                         }
                         break;
                     }
@@ -248,9 +261,95 @@ void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &choices,
                 wclear(optionsWin);
                 wrefresh(optionsWin);
                 delwin(optionsWin);
+            } else if (highlight == choices.size() - 2) {
+                handleNewRoll(rollsWin, highlight, controller, choices);
             }
         }
     }
+}
+
+void
+handleNewRoll(WINDOW *rollsWin, int &highlight, DiceController &controller, std::vector<std::string> &choices) {
+    int y = highlight + 1;
+    int x = 1;
+    wmove(rollsWin, y, x);
+    wclrtoeol(rollsWin);
+    box(rollsWin, 0, 0);
+    echo();
+    curs_set(true);
+    char newRollName[16];
+    char newRollValue[BUF_SIZE];
+    mvwgetnstr(rollsWin, y, x, newRollName, 16);
+    while (!controller.isValidRollName(newRollName)) {
+        indicateError(rollsWin, y, 1, y, 1, "Bad roll name");
+        mvwgetnstr(rollsWin, y, x, newRollName, 16);
+    }
+    x += strlen(newRollName);
+    mvwprintw(rollsWin, highlight + 1, x, ":");
+    x += 2;
+    mvwgetnstr(rollsWin, y, x, newRollValue, BUF_SIZE);
+    while (!controller.isValidRollVal(newRollValue)) {
+        indicateError(rollsWin, y, 1, y, 1, "Invalid roll format");
+        box(rollsWin, 0, 0);
+        mvwgetnstr(rollsWin, y, x, newRollValue, BUF_SIZE);
+    }
+    controller.addRoll(newRollName, newRollValue);
+    curs_set(false);
+    choices.insert(choices.begin(), newRollName);
+    std::sort(choices.begin(), choices.end() - 2);
+    wclear(rollsWin);
+    wresize(rollsWin, choices.size() + 2, 46);
+}
+
+void
+handleRollRename(WINDOW *optWin, int &highlight, DiceController &controller,
+                 std::vector<std::string> &choices) {
+    auto keys = controller.getKeys();
+    std::string oldRollName = keys->at(highlight);
+    std::string oldRollVal = controller.getSavedRoll(oldRollName);
+    delete keys;
+    wclear(optWin);
+    echo();
+    curs_set(true);
+    char newName[16];
+    mvwprintw(optWin, 0, 1, "Rename \"%s\" to: ", oldRollName.c_str());
+    mvwgetnstr(optWin, 0, 15 + oldRollName.length(), newName, 16);
+    while (controller.savedRollExists(newName)) {
+        indicateError(optWin, 0, 1, 0, 1, "That name is taken");
+        wclear(optWin);
+        mvwprintw(optWin, 0, 1, "Rename \"%s\" to: ", oldRollName.c_str());
+        mvwgetnstr(optWin, 0, 15 + oldRollName.length(), newName, 16);
+    }
+    controller.removeRoll(oldRollName);
+    controller.addRoll(newName, oldRollVal);
+    wclear(optWin);
+    wrefresh(optWin);
+    curs_set(false);
+    choices[highlight] = newName;
+    std::sort(choices.begin(), choices.end() - 2);
+}
+
+void handleRollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
+    auto keys = controller.getKeys();
+    std::string rollName = keys->at(highlight);
+    delete keys;
+    curs_set(true);
+    echo();
+    int y = highlight + 1;
+    int x = rollName.length() + 3;
+    wmove(rollsWin, y, x);
+    wclrtoeol(rollsWin);
+    wrefresh(rollsWin);
+    char newRoll[BUF_SIZE];
+    wgetnstr(rollsWin, newRoll, BUF_SIZE);
+    while (!controller.isValidRollVal(newRoll)) {
+        indicateError(rollsWin, y, x, y, x, "Invalid roll format");
+        box(rollsWin, 0, 0);
+        mvwgetnstr(rollsWin, highlight + 1, rollName.length() + 2, newRoll, BUF_SIZE);
+    }
+    controller.updateRoll(rollName, newRoll);
+    curs_set(false);
+    noecho();
 }
 
 void handleSavedRolls(int lastY, DiceController &controller) {
@@ -259,8 +358,8 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     choices->push_back("New roll...");
     choices->push_back("Exit saved rolls");
     highlight = input = 0;
-    int numChoices = controller.getKeys()->size();
-    WINDOW* rollsWin = newwin(numChoices + 4, 46, lastY + 4, 46);
+    int numChoices = choices->size();
+    WINDOW* rollsWin = newwin(numChoices + 2, 46, lastY + 4, 46);
     lastY += numChoices + 7;
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
@@ -287,7 +386,7 @@ void handleSettings(int lastY, DiceController &controller) {
         wclear(setWin);
         box(setWin, 0, 0);
         printVerticalMenu(highlight, input, setWin, choices, numSettings, 1);
-        if (input == 10) { //use pressed enter
+        if (input == 10) { //user pressed enter
             if (highlight == 0) { //change roll delay
                 handleChangeRollDelay(setWin, controller);
             } else if (highlight == 1) { //clear log

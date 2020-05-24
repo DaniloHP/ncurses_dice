@@ -3,8 +3,11 @@
 #include <vector>
 #include <string>
 #include <random>
+#include <regex>
 #include "DiceRoll.h"
 #include "DiceModel.h"
+
+#define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
 
 class DiceController {
 public:
@@ -23,6 +26,9 @@ public:
     std::string getSavedRoll(const std::string &key);
     std::vector<std::string> *getKeys();
     bool savedRollExists(const std::string &key);
+    bool isValidRollVal(const char *roll);
+    bool isValidRollName(const char *key);
+    int getNumRolls();
 
 private:
     //vars
