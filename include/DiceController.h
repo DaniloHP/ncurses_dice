@@ -12,7 +12,6 @@
 class DiceController {
 public:
     DiceController();
-//    ~DiceController();
     void logRolls(const std::string& rolls);
     void clearLog();
     bool isAcing() const;
@@ -26,8 +25,8 @@ public:
     std::string getSavedRoll(const std::string &key);
     std::vector<std::string> *getKeys();
     bool savedRollExists(const std::string &key);
-    bool isValidRollVal(const char *roll);
-    bool isValidRollName(const char *key);
+    bool isValidRollVal(const std::string &roll);
+    bool isValidRollName(const std::string &key);
     int getNumRolls();
 
 private:
@@ -42,6 +41,5 @@ private:
     std::vector<int> *parseRoll(char*);
 
 };
-
 
 #endif

@@ -61,4 +61,4 @@ private:
     void generateDefaultFile();
 };
 
-#endif //guard
+#endif

@@ -9,10 +9,6 @@ DiceController::DiceController() {
     logPath = model.getLogPath();
 }
 
-//DiceController::~DiceController() {
-//    model.~DiceModel();
-//}
-
 int DiceController::getRoll(int dieType) {
     std::uniform_int_distribution<int> dist(1, dieType);
     return dist(twisterEngine);
@@ -121,12 +117,12 @@ bool DiceController::savedRollExists(const std::string &key) {
     return !model.getSavedRoll(key).empty();
 }
 
-bool DiceController::isValidRollVal(const char *roll) {
+bool DiceController::isValidRollVal(const std::string &roll) {
     return regex_match(roll, std::regex(ROLL_REGEX));
 }
 
-bool DiceController::isValidRollName(const char *key) {
-    return !savedRollExists(key) && !isValidRollVal(key);
+bool DiceController::isValidRollName(const std::string &key) {
+    return !savedRollExists(key) && !isValidRollVal(key) && key[0] != '\0';
 }
 
 int DiceController::getNumRolls() {
