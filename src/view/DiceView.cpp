@@ -4,15 +4,18 @@
 #include <unistd.h>
 #include <iostream>
 #include <cstring>
+#include <fstream>
 #include "../../include/DiceController.h"
 
 #define ENTER 10
 #define BUF_SIZE 40
 #define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
 
-void printMenu(int &highlight, int &input, WINDOW *win, const char **choices,
-               int size, short offset);
 void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller);
+void printVerticalMenu(int &highlight, int &input, WINDOW *win, const char **choices,
+                       int size, short offset);
+void printHorizontalMenu(int& highlight, int& input, WINDOW* win, const char **choices,
+                         int size, short offset);
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
                    DiceController &controller);
 void setUpWhatDo(int lastY, WINDOW *&whatDo);
@@ -28,17 +31,18 @@ void handleNewOrUpdateRoll(int lastY, DiceController &controller, bool update);
 void
 indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
               int originalX, const char *msg);
-
 void printSavedRolls(int lastY, DiceController &controller);
-
-void boundsCheckMenu(int numChoices, int &highlight,
-                     const int input);
+void verticalBoundsCheckMenu(int numChoices, int &highlight,
+                             const int input);
+void horizontalBoundsCheckMenu(int numChoices, int &highlight,
+                             const int input);
+std::ofstream errorLog("Errors.log");
 
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
     DiceController controller;
     char roll[BUF_SIZE];
-    int lastY, choice, highlight;
+    int lastY, input, highlight;
     std::vector<int> rollNums;
     std::vector<DiceRoll*> *allRolls;
     const char *whatDoChoices[] = {
@@ -57,8 +61,8 @@ int main() {
         highlight = redo ? 1 : 0; //if last roll was redo, start with reroll HL'd
         while (true) {
             redo = enteredSubmenu = false;
-            printMenu(highlight, choice, whatDo, whatDoChoices, 5, 2);
-            if (choice == ENTER) { //perhaps a map from index to function pointer for handling?
+            printVerticalMenu(highlight, input, whatDo, whatDoChoices, 5, 2);
+            if (input == ENTER) { //perhaps a map from index to function pointer for handling?
                 if (highlight == 4) { //exit
                     done = true;
                 } else if (highlight == 3) { //settings
@@ -170,8 +174,8 @@ void setUpWhatDo(int lastY, WINDOW *&whatDo) {
     wrefresh(whatDo);
 }
 
-void printMenu(int& highlight, int& input, WINDOW* win, const char **choices,
-               int size, short offset) {
+void printVerticalMenu(int& highlight, int& input, WINDOW* win, const char **choices,
+                       int size, short offset) {
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
@@ -181,13 +185,31 @@ void printMenu(int& highlight, int& input, WINDOW* win, const char **choices,
         wattroff(win, A_REVERSE);
     }
     input = wgetch(win);
-    boundsCheckMenu(size, highlight, input);
+    verticalBoundsCheckMenu(size, highlight, input);
+}
+
+void printHorizontalMenu(int& highlight, int& input, WINDOW* win, const char **choices,
+                       int size, short offset) {
+    int entryLen = 1;
+    for (int i = 0; i < size; i++) {
+        if (i == highlight) {
+            wattron(win, A_REVERSE);
+        }
+        mvwprintw(win, offset, entryLen, "%s", choices[i]);
+        entryLen += strlen(choices[i]) + 2;
+        wrefresh(win);
+        wattroff(win, A_REVERSE);
+    }
+    input = wgetch(win);
+    horizontalBoundsCheckMenu(size, highlight, input);
 }
 
 void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &choices,
                            int &highlight, int &input,
                            DiceController &controller, int &lastY) {
     while (true) {
+        wclear(win);
+        box(win, 0, 0);
         for (int i = 0; i < choices.size(); i++) {
             if (i == highlight) {
                 wattron(win, A_REVERSE);
@@ -204,12 +226,26 @@ void printSavedRollsAsMenu(WINDOW *win, std::vector<std::string> &choices,
             wattroff(win, A_REVERSE);
         }
         input = wgetch(win);
-        boundsCheckMenu(choices.size(), highlight, input);
+        verticalBoundsCheckMenu(choices.size(), highlight, input);
         if (input == ENTER) {
-            if (highlight == 5) break;
+            if (highlight == choices.size() - 1) break;
             else if (highlight < controller.getKeys()->size()) {
                 WINDOW *optionsWin = newwin(1, 46, lastY + 1, 46);
-                mvwprintw(optionsWin, 0, 1, "Delete Rename Redefine");
+                keypad(optionsWin, true);
+                const char *subChoices[] = { "Delete", "Rename", "Redefine", "Cancel"};
+                int subHL = 0, subInp = 0;
+                while (true) {
+                    printHorizontalMenu(subHL, subInp, optionsWin, subChoices,
+                                        4, 0);
+                    if (subInp == ENTER) {
+                        if (subHL == 0) { //delete
+                            controller.removeRoll(choices[highlight]);
+                            choices.erase(choices.begin() + highlight);
+                        }
+                        break;
+                    }
+                }
+                wclear(optionsWin);
                 wrefresh(optionsWin);
                 delwin(optionsWin);
             }
@@ -228,18 +264,18 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     lastY += numChoices + 7;
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
-    if (!choices->empty()) {
-        printSavedRollsAsMenu(rollsWin, *choices, highlight, input,
-                              controller, lastY);
-    }
+    printSavedRollsAsMenu(rollsWin, *choices, highlight, input,
+                          controller, lastY);
     wclear(rollsWin);
     wrefresh(rollsWin);
     delwin(rollsWin);
+    choices->clear();
+    delete choices;
 }
 
 void handleSettings(int lastY, DiceController &controller) {
-    int highlight, choice;
-    highlight = choice = 0;
+    int highlight, input;
+    highlight = input = 0;
     const char *choices[] = {
             (const char *)"Set roll delay", (const char *)"Clear roll log",
             (const char *)"Toggle aces", (const char *)"Exit settings"};
@@ -250,8 +286,8 @@ void handleSettings(int lastY, DiceController &controller) {
     while (true) {
         wclear(setWin);
         box(setWin, 0, 0);
-        printMenu(highlight, choice, setWin, choices, numSettings, 1);
-        if (choice == 10) { //use pressed enter
+        printVerticalMenu(highlight, input, setWin, choices, numSettings, 1);
+        if (input == 10) { //use pressed enter
             if (highlight == 0) { //change roll delay
                 handleChangeRollDelay(setWin, controller);
             } else if (highlight == 1) { //clear log
@@ -370,14 +406,30 @@ void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &co
     controller.logRolls(totalRoll);
 }
 
-void boundsCheckMenu(int numChoices, int &highlight,
-                     const int input) {
+void verticalBoundsCheckMenu(int numChoices, int &highlight,
+                             const int input) {
     switch (input) {
         case KEY_UP:
             highlight--;
-            highlight = (highlight == -1) ? numChoices - 1 : highlight;
+            highlight = (highlight < 0) ? numChoices - 1 : highlight;
             break;
         case KEY_DOWN:
+            highlight++;
+            highlight = (highlight == numChoices) ? 0 : highlight;
+            break;
+        default:
+            break;
+    }
+}
+
+void horizontalBoundsCheckMenu(int numChoices, int &highlight,
+                             const int input) {
+    switch (input) {
+        case KEY_LEFT:
+            highlight--;
+            highlight = (highlight < 0) ? numChoices - 1 : highlight;
+            break;
+        case KEY_RIGHT:
             highlight++;
             highlight = (highlight == numChoices) ? 0 : highlight;
             break;
