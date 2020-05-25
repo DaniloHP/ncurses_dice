@@ -8,8 +8,7 @@
 // ^ ncurses.h's KEY_ENTER is not 10 for some reason
 
 //print all the given rolls
-void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, 
-        DiceController &controller);
+void printRolls(std::vector<DiceRoll *> *allRolls, DiceController &controller);
 
 //general menu printing
 void printVMenu(int &highlight, int &input, WINDOW *win, const char **choices,
@@ -22,20 +21,19 @@ void boundsCheckHMenu(int numChoices, int &highlight, int input);
 //specific window setup
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
                    DiceController &controller);
-void setUpWhatDo(int lastY, WINDOW *&whatDo);
+void setUpWhatDo(WINDOW *&whatDo);
 void displayInputWin(WINDOW *inWin, char *roll);
 
 //settings and its submenus
-void handleSettings(int lastY, DiceController &controller);
+void handleSettings(DiceController &controller);
 void changeRollDelay(WINDOW *setWin, DiceController &controller);
 void clearRollLog(WINDOW *setWin, DiceController &controller);
 void toggleAces(WINDOW *setWin, DiceController &controller);
 
 //saved rolls and its submenus
-void handleSavedRolls(int lastY, DiceController &controller);
+void handleSavedRolls(DiceController &controller);
 void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
-                        int &highlight, int &input,
-                        DiceController &controller, int &lastY);
+                        int &highlight, int &input, DiceController &controller);
 void rollRename(WINDOW *optWin, int &highlight, DiceController &controller,
                 std::vector<std::string> *choices);
 void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller);
@@ -49,11 +47,13 @@ int  getNumLength(int n);
 void indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
               int originalX, const char *msg);
 
+int lastY = 11;
+
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
     DiceController controller;
     char roll[ROLL_VAL_MAX];
-    int lastY, input, highlight;
+    int input, highlight;
     std::vector<int> rollNums;
     std::vector<DiceRoll*> *allRolls;
     const char *whatDoChoices[] = { "Roll again", "Reroll this roll",
@@ -65,8 +65,8 @@ int main() {
         setupInputWin(inputWin, redo, roll, controller); //collects input
         lastY = 11;
         allRolls = controller.getAllRolls(roll);
-        printRolls(allRolls, lastY, controller);
-        setUpWhatDo(lastY, whatDo);
+        printRolls(allRolls, controller);
+        setUpWhatDo(whatDo);
         highlight = redo ? 1 : 0; //if last roll was redo, start with reroll HL'd
         while (true) { //loop for the "what do" menu
             redo = enteredSubmenu = false;
@@ -75,10 +75,10 @@ int main() {
                 if (highlight == 4) { //exit
                     done = true;
                 } else if (highlight == 3) { //settings
-                    handleSettings(lastY, controller);
+                    handleSettings(controller);
                     enteredSubmenu = true;
                 } else if (highlight == 2) {
-                    handleSavedRolls(lastY, controller);
+                    handleSavedRolls(controller);
                     enteredSubmenu = true;
                 } else if (highlight == 1) { //redo the roll
                     redo = true;
@@ -101,7 +101,7 @@ int main() {
     return 0;
 }
 
-void printRolls(std::vector<DiceRoll*> *allRolls, int &lastY, DiceController &controller) {
+void printRolls(std::vector<DiceRoll *> *allRolls, DiceController &controller) {
     int j, k, numLen, xMax = getmaxx(stdscr), totalSum = 0, i = 0, wraps = 0;
     WINDOW *die, *statsWin, *totalWin;
     std::string totalRoll, acesMsg;
@@ -252,7 +252,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
     noecho();
 }
 
-void setUpWhatDo(int lastY, WINDOW *&whatDo) {
+void setUpWhatDo(WINDOW *&whatDo) {
     int numSettings = 5;
     if (whatDo == nullptr) {
         whatDo = newwin(numSettings + 3, 40, lastY + 4, 5);
@@ -279,7 +279,7 @@ void displayInputWin(WINDOW *inWin, char *roll) {
  * ==================== settings and its submenus ====================
  */
 
-void handleSettings(int lastY, DiceController &controller) {
+void handleSettings(DiceController &controller) {
     int highlight, input;
     highlight = input = 0;
     const char *choices[] = {
@@ -360,7 +360,7 @@ void toggleAces(WINDOW *setWin, DiceController &controller) {
  * ==================== saved rolls and its submenus ====================
  */
 
-void handleSavedRolls(int lastY, DiceController &controller) {
+void handleSavedRolls(DiceController &controller) {
     int highlight, input;
     auto choices = controller.getKeys();
     choices->push_back("New roll...");
@@ -373,7 +373,7 @@ void handleSavedRolls(int lastY, DiceController &controller) {
     box(rollsWin, 0, 0);
     while (true) {
         printSavedRollMenu(rollsWin, *choices, highlight, input,
-                           controller, lastY);
+                           controller);
         if (input == ENTER) {
             if (highlight == choices->size() - 1) break;
             else if (highlight < controller.getNumRolls()) { //selected a saved roll
@@ -415,7 +415,7 @@ void handleSavedRolls(int lastY, DiceController &controller) {
 
 void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
                         int &highlight, int &input,
-                        DiceController &controller, int &lastY) {
+                        DiceController &controller) {
     wclear(rollsWin);
     box(rollsWin, 0, 0);
     for (int i = 0; i < choices.size(); i++) {
