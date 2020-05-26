@@ -2,7 +2,7 @@
 #include <unistd.h>
 #include <cstring>
 #include <algorithm>
-#include "../../include/DiceController.h"
+#include "DiceController.h"
 
 #define ENTER 10
 // ^ ncurses.h's KEY_ENTER is not 10 for some reason

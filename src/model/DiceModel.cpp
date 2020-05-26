@@ -1,5 +1,5 @@
 
-#include "../../include/DiceModel.h"
+#include "DiceModel.h"
 #include <iostream>
 #include <fstream>
 

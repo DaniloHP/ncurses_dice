@@ -1,4 +1,4 @@
-#include "../../include/DiceController.h"
+#include "DiceController.h"
 #include <random>
 #include <fstream>
 #include <string>

@@ -6,3 +6,5 @@ RollHistory.txt
 *.gch
 bin/
 build/
+CMakeFiles/
+CMakeCache.txt
