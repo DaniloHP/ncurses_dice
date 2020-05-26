@@ -11,5 +11,4 @@ add_executable(ncurses
         include/DiceRoll.h
         src/model/DiceModel.cpp
         include/DiceModel.h
-        test/ModelTest.cpp
         )

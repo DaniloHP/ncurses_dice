@@ -104,7 +104,7 @@ int main() {
 void printRolls(std::vector<DiceRoll *> *allRolls, DiceController &controller) {
     int j, k, numLen, xMax = getmaxx(stdscr), totalSum = 0, i = 0, wraps = 0;
     WINDOW *die, *statsWin, *totalWin;
-    std::string totalRoll, acesMsg;
+    std::string totalRoll;
     for (const DiceRoll *dr : *allRolls) {
         numLen = getNumLength(dr->dieType);
         totalRoll += std::to_string(dr->reps) + "d" + std::to_string(dr->dieType) + ": ";
@@ -125,11 +125,12 @@ void printRolls(std::vector<DiceRoll *> *allRolls, DiceController &controller) {
         }
         totalSum += dr->sum;
         totalRoll += '\n';
-        statsWin = newwin(2, 32, lastY, (7 + (j * (numLen + 3))));
-        acesMsg = "| " + std::to_string(dr->getNumAces()) + " ace(s)";
-        mvwprintw(statsWin, 0, 0, "Sum: %d %s", dr->sum, (controller.isAcing() ?
-                                                      acesMsg.c_str() : ""));
+        statsWin = newwin(3, 32, lastY, (7 + (j * (numLen + 3))));
+        mvwprintw(statsWin, 0, 0, "Sum: %d", dr->sum);
         mvwprintw(statsWin, 1, 0, "<-- %dd%d", dr->reps, dr->dieType);
+        if (controller.isAcing()) {
+            mvwprintw(statsWin, 2, 0, "Aces: %d", dr->getNumAces());
+        }
         wrefresh(statsWin);
         delwin(statsWin);
         delete dr;
@@ -232,15 +233,15 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         rollValue = controller.getSavedRoll(roll);
         while (!controller.isValidRollVal(roll) && rollValue.empty()) {
             indicateError(inWin, 1, 1, 2, 1, "Invalid roll format");
-            box(inWin, 0, 0);
             mvwprintw(inWin, 1, 1, "Enter your roll or the name of a saved roll:");
             mvwgetnstr(inWin, 2, 1, roll, ROLL_VAL_MAX);
             rollValue = controller.getSavedRoll(roll);
         }
         if (!rollValue.empty()) {
-            strncpy(roll, rollValue.c_str(), ROLL_VAL_MAX);
             redo = true;
-            mvwprintw(inWin, 2, strlen(roll) + 2, "(%s)", roll);
+            int rollNameLen = strnlen(roll, ROLL_NAME_MAX);
+            strncpy(roll, rollValue.c_str(), ROLL_VAL_MAX);
+            mvwprintw(inWin, 2, rollNameLen + 2, "(%s)", roll);
             wrefresh(inWin);
         }
     } if (redo) {
@@ -361,6 +362,7 @@ void toggleAces(WINDOW *setWin, DiceController &controller) {
  */
 
 void handleSavedRolls(DiceController &controller) {
+    int oLastY = lastY;
     int highlight, input;
     auto choices = controller.getKeys();
     choices->push_back("New roll...");
@@ -404,13 +406,16 @@ void handleSavedRolls(DiceController &controller) {
                 newRoll(rollsWin, highlight, controller, choices);
                 lastY++;
             }
-        }
+        } else if (input == KEY_DC && highlight < controller.getNumRolls()) {
+            rollDelete(rollsWin, highlight, choices, controller);  
+        } //delete rolls by pressing the delete key
     }
     wclear(rollsWin);
     wrefresh(rollsWin);
     delwin(rollsWin);
     choices->clear();
     delete choices;
+    lastY = oLastY;
 }
 
 void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
@@ -472,15 +477,16 @@ void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
     echo();
     int y = highlight + 1;
     int x = rollName.length() + 3;
-    wmove(rollsWin, y, x);
+    wmove(rollsWin, y, 1);
     wclrtoeol(rollsWin);
+    box(rollsWin, 0, 0);
+    mvwprintw(rollsWin, y, 1, "%s:", rollName.c_str());
     wrefresh(rollsWin);
     char newRoll[ROLL_VAL_MAX];
-    wgetnstr(rollsWin, newRoll, ROLL_VAL_MAX);
+    mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
     while (!controller.isValidRollVal(newRoll)) {
         indicateError(rollsWin, y, x, y, x, "Invalid roll format");
-        box(rollsWin, 0, 0);
-        mvwgetnstr(rollsWin, highlight + 1, rollName.length() + 2, newRoll, ROLL_VAL_MAX);
+        mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
     }
     controller.updateRoll(rollName, newRoll);
     curs_set(false);
@@ -502,14 +508,15 @@ void newRoll(WINDOW *rollsWin, int &highlight, DiceController &controller, std::
         indicateError(rollsWin, y, 1, y, 1, "Bad roll name");
         mvwgetnstr(rollsWin, y, x, newRollName, ROLL_NAME_MAX);
     }
-    x += strlen(newRollName);
+    int rollNameLen = strnlen(newRollName, ROLL_NAME_MAX);
+    x += rollNameLen;
     mvwprintw(rollsWin, highlight + 1, x, ":");
-    x += 2;
-    mvwgetnstr(rollsWin, y, x, newRollValue, ROLL_VAL_MAX);
+    mvwgetnstr(rollsWin, y, x + 2, newRollValue, ROLL_VAL_MAX);
     while (!controller.isValidRollVal(newRollValue)) {
         indicateError(rollsWin, y, 1, y, 1, "Invalid roll format");
+        mvwprintw(rollsWin, y, x - rollNameLen, "%s:", newRollName); //reprint name since ^ clears the line
         box(rollsWin, 0, 0);
-        mvwgetnstr(rollsWin, y, x, newRollValue, ROLL_VAL_MAX);
+        mvwgetnstr(rollsWin, y, x + 2, newRollValue, ROLL_VAL_MAX);
     }
     controller.addRoll(newRollName, newRollValue);
     curs_set(false);
@@ -551,11 +558,11 @@ void indicateError(WINDOW *const &window, int problemY, int problemX, int origin
     wattroff(window, A_BOLD);
     wrefresh(window);
     usleep(1500000);
-    box(window, 0, 0);
     wmove(window, problemY, problemX);
     wclrtoeol(window);
     wmove(window, originalY, originalX);
     wclrtoeol(window);
+    box(window, 0, 0);
     wrefresh(window);
     curs_set(1);
 }

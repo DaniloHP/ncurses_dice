@@ -16,7 +16,7 @@ DiceModel::DiceModel() {
         while (getline(file, line)) {
             if (lineIsKey(line, keyAces)) {
                 value = extractValue(line, keyAces.length());
-                aces = *value == "0";
+                aces = *value != "0";
                 delete value;
             } else if (line.rfind(keyLogPath, 0) == 0) {
                 value = extractValue(line, keyLogPath.length());
