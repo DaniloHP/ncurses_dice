@@ -20,7 +20,7 @@ public:
     void clearLog();
     bool isAcing() const;
     void toggleAces();
-    std::vector<DiceRoll*> *getAllRolls(char *roll);
+    std::vector<DiceRoll> *getAllRolls(const std::string &roll);
     long getDelay() const;
     void setDelay(long delay);
     bool addRoll(const std::string &key, const std::string &value);

@@ -3,7 +3,18 @@
 #include <iostream>
 #include <fstream>
 
+/**
+ * Constructs a DiceModel object and scans config.ini for the settings and rolls
+ * it should begin with.
+ */
 DiceModel::DiceModel() {
+    /*
+     *
+     *
+     * TODO: MAYBE MOVE THE CONFIG.INI IO TO THE CONTROLLER
+     *
+     *
+     */
     std::string currSection, line, *key, *value;
     std::ifstream file;
     file.open(DEFAULT_CONFIG_PATH);
@@ -23,7 +34,7 @@ DiceModel::DiceModel() {
                 logPath = *value;
                 delete value;
             } else if (line.rfind(keyDelay, 0) == 0) {
-                try { //stol is only >c++11
+                try {
                     value = extractValue(line, keyDelay.length());
                     delayMicroSeconds = std::stol(*value);
                     delete value;
@@ -48,11 +59,24 @@ DiceModel::DiceModel() {
     }
 }
 
+/**
+ * Clears the map holding the saved rolls.
+ */
 DiceModel::~DiceModel() {
     savedRolls.clear();
 }
 
+/**
+ * Extracts a value from the given line (taken from config.ini).
+ *
+ * @param line The line of config.ini to extract the value from.
+ * @param startAt Index at which to start searching for the ini key/value delimiter
+ * '='.
+ *
+ * @return a new-allocated string containing the value.
+ */
 std::string *DiceModel::extractValue(std::string &line, int startAt) {
+    //TODO: modify line in place, make void
     int index = line.find('=', startAt) + 1;
     std::string *result;
     if (index == std::string::npos) {
@@ -62,6 +86,13 @@ std::string *DiceModel::extractValue(std::string &line, int startAt) {
     return result;
 }
 
+/**
+ * Extracts the key from the given line (taken from config.ini).
+ *
+ * @param line The line of config.ini to extract the key from.
+ *
+ * @return a new-allocated string containing the key.
+ */
 std::string *DiceModel::extractKey(std::string &line) {
     int index = line.find('=');
     std::string *result;
@@ -72,30 +103,57 @@ std::string *DiceModel::extractKey(std::string &line) {
     return result;
 }
 
+/**
+ * @return Value of the aces bool.
+ */
 bool DiceModel::isAcing() const {
     return aces;
 }
 
+/**
+ * Toggles the value of the aces bool.
+ */
 void DiceModel::toggleAces() {
     aces = !aces;
     updateConfig(keyAces, aces ? "1" : "0", sectionSettings);
 }
 
+/**
+ * @return The path to roll log, which is stored in config.ini.
+ */
 const std::string &DiceModel::getLogPath() const {
     return logPath;
 }
 
+/**
+ * @return The delay between rolls being displayed, in microseconds.
+ */
 long DiceModel::getDelay() const {
     return delayMicroSeconds;
 }
 
+/**
+ * Sets the delay to the new value in memory and in config.ini.
+ *
+ * @param delay The new delay value.
+ */
 void DiceModel::setDelay(long delay) {
     this->delayMicroSeconds = delay;
     updateConfig(keyDelay, std::to_string(delay), sectionSettings);
 }
 
-bool
-DiceModel::updateConfig(const std::string &key, const std::string &value,
+/**
+ * Updates a value in config.ini with the given information.
+ * A section is provided to allow duplicate keys as long as they are in different
+ * sections.
+ *
+ * @param key The key whose value to change.
+ * @param value The new value for key.
+ * @param section The section to look for key in.
+ *
+ * @return Whether or not the file operation was successful.
+ */
+bool DiceModel::updateConfig(const std::string &key, const std::string &value,
                         const std::string &section) {
     if (section == sectionRolls) {
         savedRolls[key] = value;
@@ -134,6 +192,14 @@ DiceModel::updateConfig(const std::string &key, const std::string &value,
     return updated;
 }
 
+/**
+ * Removes the line with the given key and in the given section from config.ini.
+ *
+ * @param key The key whose line to delete.
+ * @param section The section to look for key in.
+ *
+ * @return Whether or not the file operation was successful.
+ */
 bool DiceModel::removeLineFromConfig(const std::string &key,
                                      const std::string &section) {
     if (section == sectionRolls) savedRolls.erase(key);
@@ -170,6 +236,15 @@ bool DiceModel::removeLineFromConfig(const std::string &key,
     return removed;
 }
 
+/**
+ * Adds a line to config.ini with the given key and value and in the given section.
+ *
+ * @param key The key to add.
+ * @param value The new value to add for key.
+ * @param section The section to put the new line in.
+ *
+ * @return Whether or not the file operation was successful.
+ */
 bool DiceModel::addLineToConfig(const std::string &key, const std::string &value,
         const std::string &section) {
     if (section == sectionRolls) savedRolls.emplace(key, value);
@@ -195,6 +270,14 @@ bool DiceModel::addLineToConfig(const std::string &key, const std::string &value
     return added;
 }
 
+/**
+ * Attempts to check if config.ini contains the given key.
+ *
+ * @param key the key to check for.
+ *
+ * @return True if config.ini contains the key OR if it could not be opened for
+ * some reason, false if the entire file was searched a the key was not found.
+ */
 bool DiceModel::configContainsKey(const std::string &key) {
     std::string line;
     std::ifstream file;
@@ -213,17 +296,36 @@ bool DiceModel::configContainsKey(const std::string &key) {
     return false; //the key was not found
 }
 
+/**
+ * Attempts to return the roll value associated with the given key.
+ *
+ * @param key The name of the desired roll.
+ *
+ * @return The roll value associated with the given key or an empty string if no
+ * such key was found.
+ */
 std::string DiceModel::getSavedRoll(const std::string &key) {
     if (savedRolls.find(key) != savedRolls.end())
         return savedRolls[key];
     return "";
 }
 
+/**
+ * Checks if the given line's key matches the given key.
+ *
+ * @param line The line from config.ini to check.
+ * @param key The key to check for in line.
+ *
+ * @return True if the line's key matches key, false otherwise.
+ */
 bool DiceModel::lineIsKey(const std::string &line, const std::string &key) {
-    return line.rfind(key, 0) == 0 && line.length() > key.length() &&
+    return line.length() > key.length() && line.rfind(key, 0) == 0 &&
            line.at(key.length()) == '=';
 }
 
+/**
+ * @return A new-allocated vector of strings containing all the saved roll keys.
+ */
 std::vector<std::string> *DiceModel::getKeys() {
     auto keySet = new std::vector<std::string>();
     for(auto &kv : savedRolls) {
@@ -232,6 +334,9 @@ std::vector<std::string> *DiceModel::getKeys() {
     return keySet;
 }
 
+/**
+ * Generates a config.ini file with default values.
+ */
 void DiceModel::generateDefaultFile() {
     std::ofstream file(DEFAULT_CONFIG_PATH);
     file << sectionSettings << std::endl;
@@ -242,6 +347,10 @@ void DiceModel::generateDefaultFile() {
     file.close();
 }
 
+/**
+ * @return The number of saved rolls currently stored in memory and, theoretically,
+ * in config.ini.
+ */
 int DiceModel::getNumRolls() {
     return savedRolls.size();
 }

@@ -22,7 +22,10 @@
 /**
  * This class represents the program's state and enables the modification and
  * querying of that state. 
- * It also takes care of file i/o with the config file.
+ * It also takes care of file i/o with the config file and saved rolls. Saved
+ * rolls are key,value pairs that are stored both in memory in a map and in
+ * config.ini. These are like aliases that can be used for rolls performed
+ * frequently.
  */
 class DiceModel {
 public:
