@@ -8,7 +8,11 @@
 #include "DiceModel.h"
 
 #define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
-
+/**
+ * This class mostly interacts with the model and passes requests and queries
+ * along to it. It also takes care of random number generation using a Mersenne
+ * twister, as well as logging the user's rolls into a file specified in config.ini
+ */
 class DiceController {
 public:
     DiceController();
@@ -38,7 +42,7 @@ private:
 
     //functions
     int getRoll(int);
-    std::vector<int> *parseRoll(char*);
+    std::vector<int> *parseRoll(const std::string &s);
 
 };
 

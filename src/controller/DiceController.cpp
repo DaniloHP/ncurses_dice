@@ -3,22 +3,40 @@
 #include <fstream>
 #include <string>
 
+/**
+ * initiates the Mersenne twister object and collects the log path from the model.
+ */
 DiceController::DiceController() {
     std::mt19937 mt(randomDevice());
     this->twisterEngine = mt;
     logPath = model.getLogPath();
 }
 
+/**
+ * Returns a pseudo-random int between 1 and the given parameter. 
+ * @param dieType The upper limit (inclusive). If rolling d8, call getRoll(8).
+ * 
+ * @return A pseudo-random int between 1 and dieType
+ */
 int DiceController::getRoll(int dieType) {
     std::uniform_int_distribution<int> dist(1, dieType);
     return dist(twisterEngine);
 }
 
-std::vector<int>* DiceController::parseRoll(char *roll) {
+/**
+ * Given a roll that looks like "2d6 d12 4d10", this function returns a heap-
+ * allocated vector that would be [2, 6, 1, 12, 4, 10], or, the number of times 
+ * to roll the die followed by the die value.
+ * 
+ * @param roll: string containing the roll collected from the user elsewhere
+ * 
+ * @return A new-allocated vector containing ints that describe the amount of and
+ * die type of rolls to be made.
+ */
+std::vector<int>* DiceController::parseRoll(const std::string &roll) {
     auto *arr = new std::vector<int>();
-    std::string s = roll;
     int num = 0;
-    for (char c : s) {
+    for (char c : roll) {
         if ((c == 'd' || c == 'D') && num == 0) {
             arr->push_back(1);
         } else if (c > 47 && c < 58) {
@@ -31,10 +49,14 @@ std::vector<int>* DiceController::parseRoll(char *roll) {
     if (num > 0) {
         arr->push_back(num);
     }
-    s.erase(0);
     return arr;
 }
 
+/**
+ * Appends the given string to a log file for bookkeeping.
+ * 
+ * @param rolls: a string of rolls to be logged to a file.
+ */
 void DiceController::logRolls(const std::string& rolls) {
     time_t now = time(nullptr);
     std::string date = ctime(&now);
@@ -45,12 +67,18 @@ void DiceController::logRolls(const std::string& rolls) {
     date.erase(0);
 }
 
+/**
+ * Truncates the log file.
+ */
 void DiceController::clearLog() {
     std::ofstream file;
     file.open(logPath, std::ofstream::out | std::ofstream::trunc);
     file.close();
 }
 
+/**
+ * 
+ */
 std::vector<DiceRoll*> *DiceController::getAllRolls(char *roll) {
     bool aces = model.isAcing();
     auto *allRolls = new std::vector<DiceRoll*>();
