@@ -7,7 +7,7 @@
 #include "DiceRoll.h"
 #include "DiceModel.h"
 
-#define ROLL_REGEX R"((\d*[dD]\d+(\s+|$))+)"
+#define ROLL_REGEX R"(((|[1-9]|\d{2,})[dD]([1-9]|\d{2,})(\s+|$))+)"
 /**
  * This class mostly interacts with the model and passes requests and queries
  * along to it. It also takes care of random number generation using a Mersenne

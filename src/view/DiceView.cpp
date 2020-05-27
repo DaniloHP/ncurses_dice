@@ -12,11 +12,9 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller);
 
 //general menu printing
 void printVMenu(int &highlight, int &input, WINDOW *win, const char **choices,
-                int size, short offset);
-void printHMenu(int& highlight, int& input, WINDOW* win, const char **choices,
-                int size, short offset);
-void boundsCheckVMenu(int numChoices, int &highlight, int input);
-void boundsCheckHMenu(int numChoices, int &highlight, int input);
+                int size, short paddingTop);
+void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices, int size);
+void boundsCheckMenu(int numChoices, int &highlight, const int input, bool vertical);
 
 //specific window setup
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
@@ -34,11 +32,9 @@ void toggleAces(WINDOW *setWin, DiceController &controller);
 void handleSavedRolls(DiceController &controller);
 void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
                         int &highlight, int &input, DiceController &controller);
-void rollRename(WINDOW *optWin, int &highlight, DiceController &controller,
-                std::vector<std::string> *choices);
+void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> *choices, DiceController &controller);
 void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller);
-void newRoll(WINDOW *rollsWin, int &highlight, DiceController &controller,
-             std::vector<std::string> *choices);
+void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices, DiceController &controller);
 void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices,
            DiceController &controller);
 
@@ -86,7 +82,6 @@ int main() {
                 if (!enteredSubmenu) {
                     clear();
                     refresh();
-                    displayInputWin(inputWin, roll);
                     wrefresh(inputWin);
                     break;
                 }
@@ -101,6 +96,13 @@ int main() {
     return 0;
 }
 
+/**
+ * Given a vector of DiceRoll objects, this function prints them all to the 
+ * screen in little boxed ncurses windows.
+ * 
+ * @param allRolls The vector containing DiceRoll objects.
+ * @param controller The DiceController object used to query the model.
+ */
 void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
     int j, k, numLen, xMax = getmaxx(stdscr), totalSum = 0, i = 0, wraps = 0;
     WINDOW *die, *statsWin, *totalWin;
@@ -149,65 +151,77 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
  * ==================== general menu printing ====================
  */
 
+/**
+ * Prints a menu vertically with the entries contained in the given char* array.
+ * The user can navigate the menu with the arrow keys.
+ * @param highlight Int reference indicating the index of the option currently 
+ * highlighted.
+ * @param input Int reference holding user input (arrow up, down, etc).
+ * @param win The ncurses windows in which to print the menu.
+ * @param choices The menu entries, each printed on a new line.
+ * @param size Size of choices.
+ * @param paddingTop Number of lines from the top of the window to not print on
+ * in case something is already there
+ */
 void printVMenu(int& highlight, int& input, WINDOW* win, const char **choices,
-                int size, short offset) {
+                int size, short paddingTop) {
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
         }
-        mvwprintw(win, i + offset, 1, choices[i]);
+        mvwprintw(win, i + paddingTop, 1, choices[i]);
         wrefresh(win);
         wattroff(win, A_REVERSE);
     }
     input = wgetch(win);
-    boundsCheckVMenu(size, highlight, input);
+    boundsCheckMenu(size, highlight, input, true);
 }
 
-void printHMenu(int& highlight, int& input, WINDOW* win, const char **choices,
-                int size, short offset) {
+/**
+ * Prints a menu horizontally with the entries contained in the given char* array.
+ * The user can navigate the menu with the arrow keys.
+ * @param highlight Int reference indicating the index of the option currently 
+ * highlighted.
+ * @param input Int reference holding user input (arrow right, left, etc).
+ * @param win The ncurses windows in which to print the menu.
+ * @param choices The menu entries, each printed next to each other.
+ * @param size Size of choices.
+ */
+void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices, int size) {
     int entryLen = 1;
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
         }
-        mvwprintw(win, offset, entryLen, "%s", choices[i]);
+        mvwprintw(win, 0, entryLen, "%s", choices[i]);
         entryLen += strlen(choices[i]) + 2;
         wrefresh(win);
         wattroff(win, A_REVERSE);
     }
     input = wgetch(win);
-    boundsCheckHMenu(size, highlight, input);
+    boundsCheckMenu(size, highlight, input, false);
 }
 
-void boundsCheckVMenu(int numChoices, int &highlight,
-                      const int input) {
-    switch (input) {
-        case KEY_UP:
-            highlight--;
-            highlight = (highlight < 0) ? numChoices - 1 : highlight;
-            break;
-        case KEY_DOWN:
-            highlight++;
-            highlight = (highlight == numChoices) ? 0 : highlight;
-            break;
-        default:
-            break;
-    }
-}
-
-void boundsCheckHMenu(int numChoices, int &highlight,
-                      const int input) {
-    switch (input) {
-        case KEY_LEFT:
-            highlight--;
-            highlight = (highlight < 0) ? numChoices - 1 : highlight;
-            break;
-        case KEY_RIGHT:
-            highlight++;
-            highlight = (highlight == numChoices) ? 0 : highlight;
-            break;
-        default:
-            break;
+/**
+ * Given user input, checks to see how the highlighted index should be adjusted
+ * and prevents highlight from going out of bounds.
+ * 
+ * @param numChoices The number of entries in the menu.
+ * @param highlight Int reference which is changed by this function depending on
+ * user input.
+ * @param input The user's input.
+ * @param vertical Whether this function should check bounds for a vertical or 
+ * a horizontal menu.
+ */
+void boundsCheckMenu(int numChoices, int &highlight, const int input, bool vertical) {
+    int next = vertical ? KEY_DOWN : KEY_RIGHT;
+    int prev = vertical ? KEY_UP : KEY_LEFT;
+    if (input == prev) {
+        highlight--;
+        highlight = (highlight < 0) ? numChoices - 1 : highlight;
+    } else if (input == next) {
+        highlight++;
+        highlight = (highlight == numChoices) ? 0 : highlight;
     }
 }
 
@@ -215,6 +229,17 @@ void boundsCheckHMenu(int numChoices, int &highlight,
  * ==================== specific window setup ====================
  */
 
+/**
+ * This function sets up and collects input from the inputWin, which is the
+ * in which the user enters their roll.
+ * 
+ * @param inWin The inputWin ncurses window.
+ * @param redo Boolean indicating if the user chose to reroll the last roll or
+ * chose a saved roll.
+ * @param roll The roll the user LAST entered.
+ * @param controller The DiceController object used for validating input and
+ * checking for saved rolls.
+ */
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         DiceController &controller) {
     int xMax = getmaxx(stdscr);
@@ -252,6 +277,11 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
     noecho();
 }
 
+/**
+ * Sets up the whatDo window but does not print the menu itself.
+ * 
+ * @param whatDo The whatDo window
+ */
 void setUpWhatDo(WINDOW *&whatDo) {
     int numSettings = 5;
     if (whatDo == nullptr) {
@@ -267,18 +297,18 @@ void setUpWhatDo(WINDOW *&whatDo) {
     wrefresh(whatDo);
 }
 
-void displayInputWin(WINDOW *inWin, char *roll) {
-    box(inWin, 0, 0);
-    mvwprintw(inWin, 1, 1, "Enter your roll:");
-    mvwprintw(inWin, 2, 1, roll);
-    curs_set(0);
-    noecho();
-}
-
 /*
  * ==================== settings and its submenus ====================
  */
 
+/**
+ * Like the main function for the settings menu, this function handles every
+ * part of the settings menu and is not left until the settings menu is exited.
+ * Each option has its own handler of sorts, which is called from here.
+ * 
+ * @param controller The DiceController object used here to adjust settings and
+ * interact with the rolls log.
+ */
 void handleSettings(DiceController &controller) {
     int highlight, input;
     highlight = input = 0;
@@ -312,6 +342,13 @@ void handleSettings(DiceController &controller) {
     delwin(setWin);
 }
 
+/**
+ * Goes through the process of adjusting the delay between eac die being displayed,
+ * including input sanitization.
+ * 
+ * @param setWin The settings window
+ * @param controller The controller for adjusting the delay in the model as well
+ */
 void changeRollDelay(WINDOW *setWin, DiceController &controller) {
     echo();
     curs_set(1);
@@ -334,6 +371,12 @@ void changeRollDelay(WINDOW *setWin, DiceController &controller) {
     }
 }
 
+/**
+ * Allows the user to delete the rolls log.
+ * 
+ * @param setWin The settings window.
+ * @param controller The controller, which can actually truncate the file.
+ */
 void clearRollLog(WINDOW *setWin, DiceController &controller) {
     mvwprintw(setWin, 2, 1, "Really clear log? y/[n]");
     char real[3];
@@ -345,6 +388,13 @@ void clearRollLog(WINDOW *setWin, DiceController &controller) {
     }
 }
 
+/**
+ * Allows the user to toggle aces on or off.
+ *
+ * @param setWin The settings window.
+ * @param controller The controller which knows what the value is at now and can
+ * toggle it.
+ */
 void toggleAces(WINDOW *setWin, DiceController &controller) {
     controller.toggleAces();
     wmove(setWin, 3, 1);
@@ -360,6 +410,15 @@ void toggleAces(WINDOW *setWin, DiceController &controller) {
  * ==================== saved rolls and its submenus ====================
  */
 
+/**
+ * This is like handleSettings but for the saved rolls menu, which is a list of
+ * saved rolls and contains a submenu for operating on the rolls. 
+ * This menu is too specialized to be generalized into fitting with the general
+ * print menu function.
+ * 
+ * @param controller The controller object which will be used for querying and 
+ * modifying saved rolls in the model.
+ */
 void handleSavedRolls(DiceController &controller) {
     int oLastY = lastY;
     int highlight, input;
@@ -380,11 +439,12 @@ void handleSavedRolls(DiceController &controller) {
             else if (highlight < controller.getNumRolls()) { //selected a saved roll
                 WINDOW *optionsWin = newwin(1, ROLL_TOTAL_MAX, lastY - 1, 46);
                 keypad(optionsWin, true);
-                const char *subChoices[] = { "Rename", "Redefine", "Delete", "Cancel"};
+                const char *subChoices[] = { "<Rename>", "<Redefine>", 
+                                             "<Delete>", "<Cancel>"};
                 int subHL = 0, subInp = 0;
                 while (true) {
                     printHMenu(subHL, subInp, optionsWin, subChoices,
-                               4, 0);
+                               4);
                     if (subInp == ENTER) {
                         if (subHL == 2) { //delete
                             rollDelete(rollsWin, 0, choices, controller);
@@ -392,8 +452,8 @@ void handleSavedRolls(DiceController &controller) {
                         } else if (subHL == 1) {
                             rollRedefine(rollsWin, highlight, controller);
                         } else if (subHL == 0) {
-                            rollRename(optionsWin, highlight, controller,
-                                       choices);
+                            rollRename(optionsWin, highlight,
+                                       choices, controller);
                         }
                         break;
                     }
@@ -402,7 +462,7 @@ void handleSavedRolls(DiceController &controller) {
                 wrefresh(optionsWin);
                 delwin(optionsWin);
             } else if (highlight == choices->size() - 2) {
-                newRoll(rollsWin, highlight, controller, choices);
+                newRoll(rollsWin, highlight, choices, controller);
                 lastY++;
             }
         } else if (input == KEY_DC && highlight < controller.getNumRolls()) {
@@ -417,6 +477,16 @@ void handleSavedRolls(DiceController &controller) {
     lastY = oLastY;
 }
 
+/**
+ * Prints the saved rolls with special formatting.
+ * 
+ * @param rollsWin The saved rolls window.
+ * @param choices The vector of choices in the menu.
+ * @param highlight Int reference indicating the index of the option currently 
+ * highlighted.
+ * @param input Int reference holding user input (arrow right, left, etc).
+ * @param controller The controller, used here to get saved roll values
+ */
 void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
                         int &highlight, int &input,
                         DiceController &controller) {
@@ -426,7 +496,7 @@ void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
         if (i == highlight) {
             wattron(rollsWin, A_REVERSE);
         }
-        if (controller.savedRollExists(choices[i])) {
+        if (controller.savedRollExists(choices[i])) { //TODO: expensive
             wattron(rollsWin, A_BOLD);
             mvwprintw(rollsWin, i + 1, 1, "%s: ", choices[i].c_str());
             wattroff(rollsWin, A_BOLD);
@@ -438,11 +508,23 @@ void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
         wattroff(rollsWin, A_REVERSE);
     }
     input = wgetch(rollsWin);
-    boundsCheckVMenu(choices.size(), highlight, input);
+    boundsCheckMenu(choices.size(), highlight, input, true);
 }
 
-void rollRename(WINDOW *optWin, int &highlight, DiceController &controller,
-                std::vector<std::string> *choices) {
+/**
+ * This function handles the renaming of saved rolls.
+ * 
+ * @param optWin A secondary window below the saved rolls window in which the 
+ * roll is renamed.
+ * @param highlight The index which was highlighted when the user entered this
+ * menu
+ * @param choices The pointer to the vector of all the menu items, which 
+ * contains roll keys.
+ * @param controller The controller which will rename the roll in the model and
+ * validates the new name.
+ */
+void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> *choices, 
+        DiceController &controller) {
     auto keys = controller.getKeys();
     std::string oldRollName = keys->at(highlight);
     std::string oldRollVal = controller.getSavedRoll(oldRollName);
@@ -468,6 +550,15 @@ void rollRename(WINDOW *optWin, int &highlight, DiceController &controller,
     std::sort(choices->begin(), choices->end() - 2);
 }
 
+/**
+ * This function handles the redefinition of saved rolls' values.
+ * 
+ * @param rollsWin The saved rolls window.
+ * @param highlight The index which was highlighted when the user entered this
+ * function
+ * @param controller The controller which will redefine the roll in the model 
+ * and validates the new value.
+ */
 void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
     auto keys = controller.getKeys();
     std::string rollName = keys->at(highlight);
@@ -492,7 +583,19 @@ void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
     noecho();
 }
 
-void newRoll(WINDOW *rollsWin, int &highlight, DiceController &controller, std::vector<std::string> *choices) {
+/**
+ * This function handles adding a new saved roll.
+ * 
+ * @param rollsWin the saved rolls window.
+ * @param highlight The index which was highlighted when the user entered this
+ * function
+ * @param choices The pointer to the vector of all the menu items, which 
+ * contains roll keys.
+ * @param controller The controller which will add the new the roll in the model
+ * and validates the new name and value.
+ */
+void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices, 
+        DiceController &controller) {
     int y = highlight + 1;
     int x = 1;
     wmove(rollsWin, y, x);
@@ -525,6 +628,16 @@ void newRoll(WINDOW *rollsWin, int &highlight, DiceController &controller, std::
     wresize(rollsWin, choices->size() + 2, ROLL_TOTAL_MAX);
 }
 
+/**
+ * This function handles the deletion of saved rolls.
+ *
+ * @param rollsWin the saved rolls window.
+ * @param highlight The index which was highlighted when the user entered this
+ * menu
+ * @param choices The pointer to the vector of all the menu items, which 
+ * contains roll keys.
+ * @param controller The controller which will delete the roll from the model.
+ */
 void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices,
                 DiceController &controller) {
     controller.removeRoll(choices->at(highlight));
@@ -538,6 +651,13 @@ void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> *choic
  * ==================== miscellaneous ====================
  */
 
+/**
+ * This function gets the number of digits in an int n.
+ * 
+ * @param n The number whose length to check.
+ * 
+ * @return The length of n.
+ */
 int getNumLength(int n) {
     if (n == 0) {
         return 0;
@@ -546,6 +666,19 @@ int getNumLength(int n) {
     }
 }
 
+/**
+ * This function indicates an error on the given window.
+ * It sleeps the program temporarily to make it more obvious on terminal 
+ * emulators where the attribute A_BOLD does not change the printed 
+ * text's color. All x and y are relative to the given window.
+ * 
+ * @param window The window on which to indicate an error.
+ * @param problemY The y where some error occurred. 
+ * @param problemX The x where some error occurred. 
+ * @param originalY The y where the cursor should be returned afterward. 
+ * @param originalX The x where the cursor should be returned afterward. 
+ * @param msg The message which will be printed at problemY, problemX.
+ */
 void indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
                    int originalX, const char *msg) {
     wmove(window, problemY, problemX);
