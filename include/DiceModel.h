@@ -19,6 +19,11 @@
 #define DEFAULT_TEMP_PATH "temp"
 #define DEFAULT_DELAY 80000
 
+/**
+ * This class represents the program's state and enables the modification and
+ * querying of that state. 
+ * It also takes care of file i/o with the config file.
+ */
 class DiceModel {
 public:
     //vars

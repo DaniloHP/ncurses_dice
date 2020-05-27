@@ -2,6 +2,12 @@
 #define DICE_ROLL_H
 #include <vector>
 
+/**
+ * This simple struct is meant to bundle together data on a single roll. In this
+ * case a roll can be defined as x amount of reps of one single die type: 4d10 is
+ * one roll, and all of its inforation, including 4 (or more) randomly generated
+ * die values, will be stored in this struct and passed to the view for displaying. 
+ */
 struct DiceRoll {
 
 private:
@@ -32,7 +38,7 @@ public:
     }
 
     void pushBack(int val) {
-        rolls->push_back(val);
+        rolls->emplace_back(val);
     }
 };
 
