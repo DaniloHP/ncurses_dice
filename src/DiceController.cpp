@@ -25,29 +25,39 @@ int DiceController::getRoll(int dieType) {
 
 /**
  * Given a roll that looks like "2d6 d12 4d10", this function returns a heap-
- * allocated vector that would be [2, 6, 1, 12, 4, 10], or, the number of times 
- * to roll the die followed by the die value.
+ * allocated vector that would be [{2, 6}, {1, 12}, {4, 10}], or, the number
+ * of times to roll the die followed by the die value.
  * 
  * @param roll: string containing the roll collected from the user elsewhere
  * 
- * @return A new-allocated vector containing ints that describe the amount of and
- * die type of rolls to be made.
+ * @return A new-allocated vector containing pairs of ints that describe the 
+ * amount of and die type of rolls to be made.
  */
-std::vector<unsigned int> *DiceController::parseRoll(const std::string &roll) {
-    auto *result = new std::vector<unsigned int>();
+std::vector<std::pair<int, int>> *DiceController::parseRoll(
+        const std::string &roll) {
+    auto *result = new std::vector<std::pair<int, int>>();
     int num = 0;
+    std::pair<int, int> pair {-1, -1};
     for (char c : roll) {
         if ((c == 'd' || c == 'D') && num == 0) {
-            result->push_back(1);
+            pair.first = 1; //ex: "d20", with no quantifier
         } else if (c > 47 && c < 58) {
             num = num * 10 + (c - 48);
         } else if (num > 0) {
-            result->push_back(num);
+            if (pair.first < 0) {
+                pair.first = num;
+            } else if (pair.second < 0 ) {
+                pair.second = num;
+            }
             num = 0;
+        } if (pair.first > 0 and pair.second > 0) {
+            result->emplace_back(pair);
+            pair = {-1, -1};
         }
     }
     if (num > 0) {
-        result->push_back(num);
+        pair.second = num;
+        result->push_back(pair);
     }
     return result;
 }
@@ -91,25 +101,20 @@ void DiceController::clearLog() {
 std::vector<DiceRoll> *DiceController::getAllRolls(const std::string &roll) {
     bool aces = model.isAcing();
     auto *allRolls = new std::vector<DiceRoll>();
-    std::vector<unsigned int> *rollNums = parseRoll(roll);
-    int sum, origReps, dieType, reps, rollVal;
-    for (int i = 0; i < rollNums->size(); i += 2) {
+    std::vector<std::pair<int, int>> *rollNums = parseRoll(roll);
+    int rollVal;
+    for (std::pair<int, int> &p : *rollNums) {
         DiceRoll currRoll;
-        sum = 0;
-        dieType = rollNums->at(i + 1);
-        reps = origReps = rollNums->at(i);
-        currRoll.dieType = dieType;
-        currRoll.origReps = origReps;
-        for (int j = 0; j < reps; j++) {
-            rollVal = getRoll(dieType);
+        currRoll.reps = currRoll.origReps = p.first;
+        currRoll.dieType = p.second;
+        for (int j = 0; j < currRoll.reps; j++) {
+            rollVal = getRoll(currRoll.dieType);
             currRoll.addRoll(rollVal);
-            sum += rollVal;
-            if (aces && rollVal == dieType && dieType != 1)
-                reps++;
+            currRoll.sum += rollVal;
+            if (aces && rollVal == currRoll.dieType && currRoll.dieType != 1)
+                currRoll.reps++;
         }
-        currRoll.reps = reps;
-        currRoll.sum = sum;
-        allRolls->push_back(currRoll);
+        allRolls->emplace_back(currRoll);
     }
     delete rollNums;
     return allRolls;

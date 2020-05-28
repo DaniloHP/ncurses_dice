@@ -4,6 +4,7 @@
 #include <algorithm>
 #include "DiceController.h"
 
+#define ROLL_PROMPT "Enter your roll or the name of a saved roll:"
 #define ENTER 10
 // ^ ncurses.h's KEY_ENTER is not 10 for some reason
 
@@ -20,7 +21,7 @@ void boundsCheckMenu(int numChoices, int &highlight, const int input, bool verti
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
                    DiceController &controller);
 void setUpWhatDo(WINDOW *&whatDo);
-void displayInputWin(WINDOW *inWin, char *roll);
+void refillInputWin(WINDOW *inWin, char *roll);
 
 //settings and its submenus
 void handleSettings(DiceController &controller);
@@ -50,7 +51,6 @@ int main() {
     DiceController controller;
     char roll[ROLL_VAL_MAX];
     int input, highlight;
-    std::vector<int> rollNums;
     std::vector<DiceRoll> *allRolls;
     const char *whatDoChoices[] = { "Roll again", "Reroll this roll",
             "Saved rolls", "Settings", "Exit" };
@@ -62,7 +62,7 @@ int main() {
         lastY = 11;
         allRolls = controller.getAllRolls(roll);
         printRolls(allRolls, controller);
-        setUpWhatDo(whatDo);
+        setUpWhatDo(whatDo); //TODO: take this out into a handleWhatDo function?
         highlight = redo ? 1 : 0; //if last roll was redo, start with reroll HL'd
         while (true) { //loop for the "what do" menu
             redo = enteredSubmenu = false;
@@ -82,6 +82,7 @@ int main() {
                 if (!enteredSubmenu) {
                     clear();
                     refresh();
+                    refillInputWin(inputWin, roll);
                     wrefresh(inputWin);
                     break;
                 }
@@ -92,7 +93,6 @@ int main() {
     delwin(whatDo);
     delwin(mainScreen);
     endwin();
-    rollNums.clear();
     return 0;
 }
 
@@ -249,7 +249,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
     }
     wclear(inWin);
     box(inWin, 0, 0);
-    mvwprintw(inWin, 1, 1, "Enter your roll or the name of a saved roll:");
+    mvwprintw(inWin, 1, 1, ROLL_PROMPT);
     if (!redo) {
         echo();
         curs_set(1);
@@ -257,7 +257,7 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
         rollValue = controller.getSavedRoll(roll);
         while (!controller.isValidRollVal(roll) && rollValue.empty()) {
             indicateError(inWin, 1, 1, 2, 1, "Invalid roll format");
-            mvwprintw(inWin, 1, 1, "Enter your roll or the name of a saved roll:");
+            mvwprintw(inWin, 1, 1, ROLL_PROMPT);
             mvwgetnstr(inWin, 2, 1, roll, ROLL_VAL_MAX);
             rollValue = controller.getSavedRoll(roll);
         }
@@ -295,6 +295,23 @@ void setUpWhatDo(WINDOW *&whatDo) {
     mvwprintw(whatDo, 1, 1, "What do?");
     wattroff(whatDo, A_BOLD);
     wrefresh(whatDo);
+}
+
+/**
+ * This function only makes sure all of the content of the input window is there,
+ * so that it can be wrefreshed back in main.
+ * For some reason, without this, the input window disappears when you choose 
+ * to reroll.
+ * 
+ * @param inWin The input window.
+ * @param roll The last roll inputted by the user.
+ */
+void refillInputWin(WINDOW *inWin, char *roll) {
+    box(inWin, 0, 0);
+    mvwprintw(inWin, 1, 1, ROLL_PROMPT);
+    mvwprintw(inWin, 2, 1, roll);
+    curs_set(0);
+    noecho();
 }
 
 /*
@@ -420,11 +437,6 @@ void toggleAces(WINDOW *setWin, DiceController &controller) {
  * modifying saved rolls in the model.
  */
 void handleSavedRolls(DiceController &controller) {
-    /**
-     * 
-     * TODO: bring back displayInputWin
-     * 
-     */
     int oLastY = lastY;
     int highlight, input;
     auto choices = controller.getKeys();

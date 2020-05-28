@@ -42,7 +42,7 @@ private:
 
     //functions
     int getRoll(int);
-    static std::vector<unsigned int> *parseRoll(const std::string &s);
+    static std::vector<std::pair<int, int>> *parseRoll(const std::string &s);
 
 };
 
