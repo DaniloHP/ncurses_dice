@@ -1,4 +1,4 @@
-#Welcome to Ncurses Dice
+# Welcome to Ncurses Dice
 This is a very simple dice roller with the functionality for saving rolls you use 
 frequently and the use of "aces," a rule where dice rolled at their highest value
 are rolled again. This is a rule in tabletop RPG system Savage Worlds, and probably
@@ -11,7 +11,7 @@ facilitates the creation of terminal-based user interfaces. Compatibility, then,
 is tricky for Windows, but I've run it with no problem on WSL Debian. Additionally, 
 I've tested it on Arch Linux and OpenSUSE Tumbleweed. 
 
-##Build
+## Build
 To get started, make sure you have `cmake` and `make` installed on your system. 
 In the project root directory, run `cmake CMakeLists.txt` and then `make`.
 Hopefully this will build the project, at which point you can run the executable
@@ -19,7 +19,7 @@ Hopefully this will build the project, at which point you can run the executable
 doesn't come with ncurses installed, so make sure you get that installed as well. 
 The required package may be called something like `libncurses` or `ncurses-devel`.
 
-##Use
+## Use
 To roll, simply enter one or more dice rolls in the following format:
 >`2d10 d20 3d6`
 
