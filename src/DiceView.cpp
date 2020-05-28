@@ -1,7 +1,7 @@
 #include <ncurses.h>
-#include <unistd.h>
 #include <cstring>
 #include <algorithm>
+#include <thread>
 #include "DiceController.h"
 
 #define ROLL_PROMPT "Enter your roll or the name of a saved roll:"
@@ -44,7 +44,7 @@ int  getNumLength(int n);
 void indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
               int originalX, const char *msg);
 
-int lastY = 11;
+static int lastY = 11;
 
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
@@ -104,14 +104,15 @@ int main() {
  * @param controller The DiceController object used to query the model.
  */
 void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
-    int j, k, numLen, xMax = getmaxx(stdscr), totalSum = 0, i = 0, wraps = 0;
+    int j, k, numLen, xMax = getmaxx(stdscr), i = 0, wraps = 0;
+    unsigned long long int totalSum = 0;
     WINDOW *die, *statsWin, *totalWin;
     for (const DiceRoll &dr : *allRolls) {
         numLen = getNumLength(dr.dieType);
         lastY = 7 + (3 * (wraps + i++));
         //k is the real iterator that checks for reps, j is for visual purposes
         for (j = 0, k = 0; k < dr.reps; j++, k++) {
-            usleep(controller.getDelay());
+            std::this_thread::sleep_for(std::chrono::microseconds(controller.getDelay()));
             if (5 + (j * (numLen + 3)) > xMax - 12) { //wrap rolls onto new line
  //left padding ^    ^^^^^^^^^^^^^^^^ width of all the rolls in the row
                 j = 0, lastY += 3, wraps++;
@@ -124,7 +125,7 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
         }
         totalSum += dr.sum;
         statsWin = newwin(3, 32, lastY, (7 + (j * (numLen + 3))));
-        mvwprintw(statsWin, 0, 0, "Sum: %d", dr.sum);
+        mvwprintw(statsWin, 0, 0, "Sum: %llu", dr.sum);
         mvwprintw(statsWin, 1, 0, "<-- %dd%d", dr.origReps, dr.dieType);
         if (controller.isAcing()) {
             mvwprintw(statsWin, 2, 0, "Aces: %d", dr.getNumAces());
@@ -134,7 +135,7 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
     }
     if (allRolls->size() > 1) {
         totalWin = newwin(1, 32, lastY + 3, 5);
-        mvwprintw(totalWin, 0, 0, "Sum of all rolls: %d", totalSum);
+        mvwprintw(totalWin, 0, 0, "Sum of all rolls: %llu", totalSum);
         wrefresh(totalWin);
         delwin(totalWin);
     }
@@ -415,7 +416,7 @@ void toggleAces(WINDOW *setWin, DiceController &controller) {
     mvwprintw(setWin, 3, 1, "Aces now %s", (controller.isAcing()) ? "on" : "off");
     box(setWin, 0, 0);
     wrefresh(setWin);
-    usleep(1500000);
+    std::this_thread::sleep_for(std::chrono::microseconds(1500000));
 }
 
 /*
@@ -585,7 +586,7 @@ void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
     wrefresh(rollsWin);
     char newRoll[ROLL_VAL_MAX];
     mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
-    while (!controller.isValidRollVal(newRoll)) {
+    while (!DiceController::isValidRollVal(newRoll)) {
         indicateError(rollsWin, y, x, y, x, "Invalid roll format");
         mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
     }
@@ -700,7 +701,7 @@ void indicateError(WINDOW *const &window, int problemY, int problemX, int origin
     mvwprintw(window, problemY, problemX, msg);
     wattroff(window, A_BOLD);
     wrefresh(window);
-    usleep(1500000);
+    std::this_thread::sleep_for(std::chrono::microseconds(1500000));
     wmove(window, problemY, problemX);
     wclrtoeol(window);
     wmove(window, originalY, originalX);

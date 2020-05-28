@@ -14,7 +14,8 @@ private:
     std::vector<int> rolls;
 
 public:
-    int sum, dieType, reps, origReps;
+    int dieType, reps, origReps;
+    unsigned long long int sum;
 
     /**
      * Initiates all members to 0.
