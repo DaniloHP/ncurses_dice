@@ -29,7 +29,7 @@ public:
     std::string getSavedRoll(const std::string &key);
     std::vector<std::string> *getKeys();
     bool savedRollExists(const std::string &key);
-    bool isValidRollVal(const std::string &roll);
+    static bool isValidRollVal(const std::string &roll);
     bool isValidRollName(const std::string &key);
     int getNumRolls();
 
@@ -42,7 +42,7 @@ private:
 
     //functions
     int getRoll(int);
-    std::vector<int> *parseRoll(const std::string &s);
+    static std::vector<unsigned int> *parseRoll(const std::string &s);
 
 };
 

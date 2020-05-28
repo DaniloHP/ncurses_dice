@@ -12,11 +12,11 @@ find_package(Curses REQUIRED)
 include_directories(${NCURSES_INCLUDE_DIR})
 
 add_executable(dice
-        src/controller/DiceController.cpp
+        src/DiceController.cpp
         include/DiceController.h
-        src/view/DiceView.cpp
+        src/DiceView.cpp
         include/DiceRoll.h
-        src/model/DiceModel.cpp
+        src/DiceModel.cpp
         include/DiceModel.h
         )
 

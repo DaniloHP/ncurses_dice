@@ -63,9 +63,8 @@ private:
 
     //functions
     static bool lineIsKey(const std::string &line, const std::string &key);
-    static std::string *extractValue(std::string &line, int startAt);
-    static std::string *extractKey(std::string &line);
-
+    static void extractValue(std::string &line, int startAt);
+    static void extractKey(std::string &line);
     void generateDefaultFile();
 };
 
