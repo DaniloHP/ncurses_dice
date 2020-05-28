@@ -420,6 +420,11 @@ void toggleAces(WINDOW *setWin, DiceController &controller) {
  * modifying saved rolls in the model.
  */
 void handleSavedRolls(DiceController &controller) {
+    /**
+     * 
+     * TODO: bring back displayInputWin
+     * 
+     */
     int oLastY = lastY;
     int highlight, input;
     auto choices = controller.getKeys();
@@ -495,8 +500,7 @@ void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
     for (int i = 0; i < choices.size(); i++) {
         if (i == highlight) {
             wattron(rollsWin, A_REVERSE);
-        }
-        if (controller.savedRollExists(choices[i])) { //TODO: expensive
+        } if (controller.savedRollExists(choices[i])) {
             wattron(rollsWin, A_BOLD);
             mvwprintw(rollsWin, i + 1, 1, "%s: ", choices[i].c_str());
             wattroff(rollsWin, A_BOLD);
