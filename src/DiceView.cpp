@@ -62,8 +62,8 @@ int main() {
         lastY = 11;
         allRolls = controller.getAllRolls(roll);
         printRolls(allRolls, controller);
-        setUpWhatDo(whatDo); //TODO: take this out into a handleWhatDo function?
-        highlight = redo ? 1 : 0; //if last roll was redo, start with reroll HL'd
+        setUpWhatDo(whatDo);
+        highlight = redo ? 1 : 0; //if last roll was redo, start with reroll option HL'd
         while (true) { //loop for the "what do" menu
             redo = enteredSubmenu = false;
             printVMenu(highlight, input, whatDo, whatDoChoices, 5, 2);
@@ -106,30 +106,26 @@ int main() {
 void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
     int j, k, numLen, xMax = getmaxx(stdscr), totalSum = 0, i = 0, wraps = 0;
     WINDOW *die, *statsWin, *totalWin;
-    std::string totalRoll;
     for (const DiceRoll &dr : *allRolls) {
         numLen = getNumLength(dr.dieType);
-        totalRoll += std::to_string(dr.reps) + "d" + std::to_string(dr.dieType) + ": ";
         lastY = 7 + (3 * (wraps + i++));
         //k is the real iterator that checks for reps, j is for visual purposes
         for (j = 0, k = 0; k < dr.reps; j++, k++) {
             usleep(controller.getDelay());
             if (5 + (j * (numLen + 3)) > xMax - 12) { //wrap rolls onto new line
-                //left padding ^    ^^^^^^^^^^^^^^^^ width of all the rolls in the row
+ //left padding ^    ^^^^^^^^^^^^^^^^ width of all the rolls in the row
                 j = 0, lastY += 3, wraps++;
             }
             die = newwin(3, numLen + 2, lastY, 5 + (j * (numLen + 3)));
             box(die, 0, 0);
-            totalRoll += std::to_string(dr.getAt(k)) + " ";
             mvwprintw(die, 1, 1, "%d", dr.getAt(k));
             wrefresh(die); //dr->getAt(k) is the actual value of the roll
             delwin(die);
         }
         totalSum += dr.sum;
-        totalRoll += '\n';
         statsWin = newwin(3, 32, lastY, (7 + (j * (numLen + 3))));
         mvwprintw(statsWin, 0, 0, "Sum: %d", dr.sum);
-        mvwprintw(statsWin, 1, 0, "<-- %dd%d", dr.reps, dr.dieType);
+        mvwprintw(statsWin, 1, 0, "<-- %dd%d", dr.origReps, dr.dieType);
         if (controller.isAcing()) {
             mvwprintw(statsWin, 2, 0, "Aces: %d", dr.getNumAces());
         }
@@ -144,7 +140,6 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
     }
     allRolls->clear();
     delete allRolls;
-    controller.logRolls(totalRoll);
 }
 
 /*

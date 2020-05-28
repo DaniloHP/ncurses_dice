@@ -16,7 +16,6 @@
 class DiceController {
 public:
     DiceController();
-    void logRolls(const std::string& rolls);
     void clearLog();
     bool isAcing() const;
     void toggleAces();
@@ -43,6 +42,7 @@ private:
     //functions
     int getRoll(int);
     static std::vector<std::pair<int, int>> *parseRoll(const std::string &s);
+    void logRolls(const std::string& rolls);
 
 };
 

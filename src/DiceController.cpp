@@ -99,31 +99,37 @@ void DiceController::clearLog() {
  * @return a new-allocated vector of DiceRoll objects.
  */
 std::vector<DiceRoll> *DiceController::getAllRolls(const std::string &roll) {
+    std::string totalRoll;
     bool aces = model.isAcing();
     auto *allRolls = new std::vector<DiceRoll>();
     std::vector<std::pair<int, int>> *rollNums = parseRoll(roll);
     int rollVal;
     for (std::pair<int, int> &p : *rollNums) {
-        DiceRoll currRoll;
-        currRoll.reps = currRoll.origReps = p.first;
-        currRoll.dieType = p.second;
-        for (int j = 0; j < currRoll.reps; j++) {
-            rollVal = getRoll(currRoll.dieType);
-            currRoll.addRoll(rollVal);
-            currRoll.sum += rollVal;
-            if (aces && rollVal == currRoll.dieType && currRoll.dieType != 1)
-                currRoll.reps++;
+        DiceRoll dr;
+        dr.reps = dr.origReps = p.first;
+        dr.dieType = p.second;
+        totalRoll += std::to_string(dr.reps) + "d" + std::to_string(dr.dieType) + ": ";
+        for (int j = 0; j < dr.reps; j++) {
+            rollVal = getRoll(dr.dieType);
+            dr.addRoll(rollVal);
+            totalRoll += std::to_string(rollVal) + " ";
+            dr.sum += rollVal;
+            if (aces && rollVal == dr.dieType && dr.dieType != 1)
+                dr.reps++;
         }
-        allRolls->emplace_back(currRoll);
+        allRolls->emplace_back(dr);
+        totalRoll += '\n';
     }
     delete rollNums;
+    logRolls(totalRoll);
     return allRolls;
 }
 
 /**
  * If "aces" are in effect, dice rolled at their max values will be rolled again.
  * For example, if 2d6 were supposed to be rolled, and one of the dice rolls a 6,
- * 3d6 will end up being rolled. This can happen theoretically infinitely.
+ * 3d6 will end up being rolled. Theoretically this can happen infinitely.
+ * 
  * @return whether or not aces are currently in effect.
  */
 bool DiceController::isAcing() const {
