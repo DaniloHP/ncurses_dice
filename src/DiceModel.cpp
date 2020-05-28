@@ -8,49 +8,35 @@
  * it should begin with.
  */
 DiceModel::DiceModel() {
-    /*
-     *
-     *
-     * TODO: MAYBE MOVE THE CONFIG.INI IO TO THE CONTROLLER
-     *
-     *
-     */
-    std::string currSection, line, *key, *value;
+    std::string currSection, line;
     std::ifstream file;
     file.open(DEFAULT_CONFIG_PATH);
     //defaults, in case not found in the file
-    value = nullptr;
     aces = false;
     logPath = DEFAULT_LOG_PATH;
     delayMicroSeconds = DEFAULT_DELAY;
     if (file.is_open()) {
         while (getline(file, line)) {
-            if (lineIsKey(line, keyAces)) {
-                value = extractValue(line, keyAces.length());
-                aces = *value != "0";
-                delete value;
-            } else if (line.rfind(keyLogPath, 0) == 0) {
-                value = extractValue(line, keyLogPath.length());
-                logPath = *value;
-                delete value;
-            } else if (line.rfind(keyDelay, 0) == 0) {
-                try {
-                    value = extractValue(line, keyDelay.length());
-                    delayMicroSeconds = std::stol(*value);
-                    delete value;
-                } catch (std::invalid_argument &e) {
-                    delete value;
-                }
-            } else if (line.rfind('[', 0) == 0) {
+            if (line.rfind('[', 0) == 0) {
                 currSection = line;
-            }
-            if (currSection == sectionRolls) {
-                key = extractKey(line);
-                value = extractValue(line, 0);
-                if (key != nullptr && value != nullptr) {
-                    savedRolls.emplace(*key, *value);
+            } else if (lineIsKey(line, keyAces)) {
+                extractValue(line, keyAces.length());
+                aces = line != "0";
+            } else if (lineIsKey(line, keyLogPath)) {
+                extractValue(line, keyLogPath.length());
+                logPath = line;
+            } else if (lineIsKey(line, keyDelay)) {
+                try {
+                    extractValue(line, keyDelay.length());
+                    delayMicroSeconds = std::stol(line);
+                } catch (std::invalid_argument &e) {/*It's already a default*/}
+            } else if (currSection == sectionRolls) {
+                std::string value(line);
+                extractKey(line);
+                extractValue(value, 0);
+                if (!line.empty() && !value.empty()) {
+                    savedRolls.emplace(line, value);
                 }
-                delete key; delete value;
             }
         }
         file.close();
@@ -69,38 +55,33 @@ DiceModel::~DiceModel() {
 /**
  * Extracts a value from the given line (taken from config.ini).
  *
- * @param line The line of config.ini to extract the value from.
+ * @param line The line of config.ini to extract the value from, and which is 
+ * modified in place and will contain the value on return.
  * @param startAt Index at which to start searching for the ini key/value delimiter
  * '='.
- *
- * @return a new-allocated string containing the value.
  */
-std::string *DiceModel::extractValue(std::string &line, int startAt) {
-    //TODO: modify line in place, make void
+void DiceModel::extractValue(std::string &line, int startAt) {
     int index = line.find('=', startAt) + 1;
-    std::string *result;
     if (index == std::string::npos) {
-        return nullptr;
+        line = "";
+    } else {
+        line = line.substr(index);
     }
-    result = new std::string(line.substr(index));
-    return result;
 }
 
 /**
- * Extracts the key from the given line (taken from config.ini).
+ * Extracts the key from the given line taken from config.ini.
  *
- * @param line The line of config.ini to extract the key from.
- *
- * @return a new-allocated string containing the key.
+ * @param line The line of config.ini to extract the key from, which is modified
+ * in place and serves as a return parameter.
  */
-std::string *DiceModel::extractKey(std::string &line) {
+void DiceModel::extractKey(std::string &line) {
     int index = line.find('=');
-    std::string *result;
     if (index == std::string::npos) {
-        return nullptr;
+        line = "";
+    } else {
+        line = line.substr(0, index);
     }
-    result = new std::string(line.substr(0, index));
-    return result;
 }
 
 /**

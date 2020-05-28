@@ -33,23 +33,23 @@ int DiceController::getRoll(int dieType) {
  * @return A new-allocated vector containing ints that describe the amount of and
  * die type of rolls to be made.
  */
-std::vector<int>* DiceController::parseRoll(const std::string &roll) {
-    auto *arr = new std::vector<int>();
+std::vector<unsigned int> *DiceController::parseRoll(const std::string &roll) {
+    auto *result = new std::vector<unsigned int>();
     int num = 0;
     for (char c : roll) {
         if ((c == 'd' || c == 'D') && num == 0) {
-            arr->push_back(1);
+            result->push_back(1);
         } else if (c > 47 && c < 58) {
             num = num * 10 + (c - 48);
         } else if (num > 0) {
-            arr->push_back(num);
+            result->push_back(num);
             num = 0;
         }
     }
     if (num > 0) {
-        arr->push_back(num);
+        result->push_back(num);
     }
-    return arr;
+    return result;
 }
 
 /**
@@ -91,7 +91,7 @@ void DiceController::clearLog() {
 std::vector<DiceRoll> *DiceController::getAllRolls(const std::string &roll) {
     bool aces = model.isAcing();
     auto *allRolls = new std::vector<DiceRoll>();
-    std::vector<int> *rollNums = parseRoll(roll);
+    std::vector<unsigned int> *rollNums = parseRoll(roll);
     int sum, origReps, dieType, reps, rollVal;
     for (int i = 0; i < rollNums->size(); i += 2) {
         DiceRoll currRoll;
