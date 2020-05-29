@@ -23,14 +23,7 @@ public:
     DiceRoll() {
         sum = dieType = reps = origReps = 0;
     }
-
-    /**
-     * Clears the rolls vector.
-     */
-    ~DiceRoll() {
-        rolls.clear();
-    }
-
+    
     /**
      * @return the number of reps minus the original number, or, the number of
      * extra rolls done as a result of aces.

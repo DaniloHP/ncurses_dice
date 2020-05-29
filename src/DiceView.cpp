@@ -9,13 +9,13 @@
 // ^ ncurses.h's KEY_ENTER is not 10 for some reason
 
 //print all the given rolls
-void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller);
+void printRolls(const std::vector<DiceRoll> &allRolls, const DiceController &controller);
 
 //general menu printing
 void printVMenu(int &highlight, int &input, WINDOW *win, const char **choices,
                 int size, short paddingTop);
 void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices, int size);
-void boundsCheckMenu(int numChoices, int &highlight, const int input, bool vertical);
+int getNewHighlight(int numChoices, int highlight, int input, bool vertical);
 
 //specific window setup
 void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
@@ -26,22 +26,22 @@ void refillInputWin(WINDOW *inWin, char *roll);
 //settings and its submenus
 void handleSettings(DiceController &controller);
 void changeRollDelay(WINDOW *setWin, DiceController &controller);
-void clearRollLog(WINDOW *setWin, DiceController &controller);
+void clearRollLog(WINDOW *setWin, const DiceController &controller);
 void toggleAces(WINDOW *setWin, DiceController &controller);
 
 //saved rolls and its submenus
 void handleSavedRolls(DiceController &controller);
-void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
+void printSavedRollMenu(WINDOW *rollsWin, const std::vector<std::string> &choices,
                         int &highlight, int &input, DiceController &controller);
-void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> *choices, DiceController &controller);
+void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> &choices, DiceController &controller);
 void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller);
-void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices, DiceController &controller);
-void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices,
-           DiceController &controller);
+void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> &choices, DiceController &controller);
+void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> &choices,
+                DiceController &controller);
 
 //miscellaneous
 int  getNumLength(int n);
-void indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
+void indicateError(WINDOW *window, int problemY, int problemX, int originalY,
               int originalX, const char *msg);
 
 static int lastY = 11;
@@ -51,7 +51,7 @@ int main() {
     DiceController controller;
     char roll[ROLL_VAL_MAX];
     int input, highlight;
-    std::vector<DiceRoll> *allRolls;
+    std::vector<DiceRoll> allRolls;
     const char *whatDoChoices[] = { "Roll again", "Reroll this roll",
             "Saved rolls", "Settings", "Exit" };
     bool redo, done, enteredSubmenu;
@@ -103,11 +103,11 @@ int main() {
  * @param allRolls The vector containing DiceRoll objects.
  * @param controller The DiceController object used to query the model.
  */
-void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
+void printRolls(const std::vector<DiceRoll> &allRolls, const DiceController &controller) {
     int j, k, numLen, xMax = getmaxx(stdscr), i = 0, wraps = 0;
     unsigned long long int totalSum = 0;
     WINDOW *die, *statsWin, *totalWin;
-    for (const DiceRoll &dr : *allRolls) {
+    for (const DiceRoll &dr : allRolls) {
         numLen = getNumLength(dr.dieType);
         lastY = 7 + (3 * (wraps + i++));
         //k is the real iterator that checks for reps, j is for visual purposes
@@ -133,14 +133,12 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
         wrefresh(statsWin);
         delwin(statsWin);
     }
-    if (allRolls->size() > 1) {
+    if (allRolls.size() > 1) {
         totalWin = newwin(1, 32, lastY + 3, 5);
         mvwprintw(totalWin, 0, 0, "Sum of all rolls: %llu", totalSum);
         wrefresh(totalWin);
         delwin(totalWin);
     }
-    allRolls->clear();
-    delete allRolls;
 }
 
 /*
@@ -160,7 +158,7 @@ void printRolls(std::vector<DiceRoll> *allRolls, DiceController &controller) {
  * in case something is already there
  */
 void printVMenu(int& highlight, int& input, WINDOW* win, const char **choices,
-                int size, short paddingTop) {
+                const int size, const short paddingTop) {
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
             wattron(win, A_REVERSE);
@@ -170,7 +168,7 @@ void printVMenu(int& highlight, int& input, WINDOW* win, const char **choices,
         wattroff(win, A_REVERSE);
     }
     input = wgetch(win);
-    boundsCheckMenu(size, highlight, input, true);
+    highlight = getNewHighlight(size, highlight, input, true);
 }
 
 /**
@@ -183,7 +181,8 @@ void printVMenu(int& highlight, int& input, WINDOW* win, const char **choices,
  * @param choices The menu entries, each printed next to each other.
  * @param size Size of choices.
  */
-void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices, int size) {
+void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices,
+        const int size) {
     int entryLen = 1;
     for (int i = 0; i < size; i++) {
         if (i == highlight) {
@@ -195,7 +194,7 @@ void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices, i
         wattroff(win, A_REVERSE);
     }
     input = wgetch(win);
-    boundsCheckMenu(size, highlight, input, false);
+    highlight = getNewHighlight(size, highlight, input, false);
 }
 
 /**
@@ -203,13 +202,15 @@ void printHMenu(int &highlight, int &input, WINDOW *win, const char **choices, i
  * and prevents highlight from going out of bounds.
  * 
  * @param numChoices The number of entries in the menu.
- * @param highlight Int reference which is changed by this function depending on
- * user input.
+ * @param highlight The index of the menu entry currently highlighted
  * @param input The user's input.
  * @param vertical Whether this function should check bounds for a vertical or 
  * a horizontal menu.
+ * 
+ * @return the new index of the highlight after the user's input
  */
-void boundsCheckMenu(int numChoices, int &highlight, const int input, bool vertical) {
+int getNewHighlight(const int numChoices, int highlight, const int input, 
+        const bool vertical) {
     int next = vertical ? KEY_DOWN : KEY_RIGHT;
     int prev = vertical ? KEY_UP : KEY_LEFT;
     if (input == prev) {
@@ -219,6 +220,7 @@ void boundsCheckMenu(int numChoices, int &highlight, const int input, bool verti
         highlight++;
         highlight = (highlight == numChoices) ? 0 : highlight;
     }
+    return highlight;
 }
 
 /*
@@ -390,7 +392,7 @@ void changeRollDelay(WINDOW *setWin, DiceController &controller) {
  * @param setWin The settings window.
  * @param controller The controller, which can actually truncate the file.
  */
-void clearRollLog(WINDOW *setWin, DiceController &controller) {
+void clearRollLog(WINDOW *setWin, const DiceController &controller) {
     mvwprintw(setWin, 2, 1, "Really clear log? y/[n]");
     char real[3];
     echo();
@@ -436,19 +438,19 @@ void handleSavedRolls(DiceController &controller) {
     int oLastY = lastY;
     int highlight, input;
     auto choices = controller.getKeys();
-    choices->push_back("New roll...");
-    choices->push_back("Exit saved rolls");
+    choices.emplace_back("New roll...");
+    choices.emplace_back("Exit saved rolls");
     highlight = input = 0;
-    int numChoices = choices->size();
+    int numChoices = choices.size();
     WINDOW* rollsWin = newwin(numChoices + 2, ROLL_TOTAL_MAX, lastY + 4, 46);
     lastY += numChoices + 7;
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
     while (true) {
-        printSavedRollMenu(rollsWin, *choices, highlight, input,
+        printSavedRollMenu(rollsWin, choices, highlight, input,
                            controller);
         if (input == ENTER) {
-            if (highlight == choices->size() - 1) break;
+            if (highlight == choices.size() - 1) break;
             else if (highlight < controller.getNumRolls()) { //selected a saved roll
                 WINDOW *optionsWin = newwin(1, ROLL_TOTAL_MAX, lastY - 1, 46);
                 keypad(optionsWin, true);
@@ -474,7 +476,7 @@ void handleSavedRolls(DiceController &controller) {
                 wclear(optionsWin);
                 wrefresh(optionsWin);
                 delwin(optionsWin);
-            } else if (highlight == choices->size() - 2) {
+            } else if (highlight == choices.size() - 2) {
                 newRoll(rollsWin, highlight, choices, controller);
                 lastY++;
             }
@@ -485,8 +487,7 @@ void handleSavedRolls(DiceController &controller) {
     wclear(rollsWin);
     wrefresh(rollsWin);
     delwin(rollsWin);
-    choices->clear();
-    delete choices;
+    choices.clear();
     lastY = oLastY;
 }
 
@@ -500,7 +501,7 @@ void handleSavedRolls(DiceController &controller) {
  * @param input Int reference holding user input (arrow right, left, etc).
  * @param controller The controller, used here to get saved roll values
  */
-void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
+void printSavedRollMenu(WINDOW *rollsWin, const std::vector<std::string> &choices,
                         int &highlight, int &input,
                         DiceController &controller) {
     wclear(rollsWin);
@@ -520,7 +521,7 @@ void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
         wattroff(rollsWin, A_REVERSE);
     }
     input = wgetch(rollsWin);
-    boundsCheckMenu(choices.size(), highlight, input, true);
+    highlight = getNewHighlight(choices.size(), highlight, input, true);
 }
 
 /**
@@ -535,12 +536,11 @@ void printSavedRollMenu(WINDOW *rollsWin, std::vector<std::string> &choices,
  * @param controller The controller which will rename the roll in the model and
  * validates the new name.
  */
-void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> *choices, 
-        DiceController &controller) {
+void rollRename(WINDOW *optWin, const int highlight, 
+        std::vector<std::string> &choices, DiceController &controller) {
     auto keys = controller.getKeys();
-    std::string oldRollName = keys->at(highlight);
+    std::string oldRollName = keys.at(highlight);
     std::string oldRollVal = controller.getSavedRoll(oldRollName);
-    delete keys;
     wclear(optWin);
     echo();
     curs_set(true);
@@ -558,8 +558,8 @@ void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> *choices
     wclear(optWin);
     wrefresh(optWin);
     curs_set(false);
-    choices->at(highlight) = newName;
-    std::sort(choices->begin(), choices->end() - 2);
+    choices.at(highlight) = newName;
+    std::sort(choices.begin(), choices.end() - 2);
 }
 
 /**
@@ -571,10 +571,9 @@ void rollRename(WINDOW *optWin, int highlight, std::vector<std::string> *choices
  * @param controller The controller which will redefine the roll in the model 
  * and validates the new value.
  */
-void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
+void rollRedefine(WINDOW *rollsWin, const int highlight, DiceController &controller) {
     auto keys = controller.getKeys();
-    std::string rollName = keys->at(highlight);
-    delete keys;
+    std::string rollName = keys.at(highlight);
     curs_set(true);
     echo();
     int y = highlight + 1;
@@ -586,7 +585,7 @@ void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
     wrefresh(rollsWin);
     char newRoll[ROLL_VAL_MAX];
     mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
-    while (!DiceController::isValidRollVal(newRoll)) {
+    while (!controller.isValidRollVal(newRoll)) {
         indicateError(rollsWin, y, x, y, x, "Invalid roll format");
         mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
     }
@@ -606,8 +605,8 @@ void rollRedefine(WINDOW *rollsWin, int highlight, DiceController &controller) {
  * @param controller The controller which will add the new the roll in the model
  * and validates the new name and value.
  */
-void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices, 
-        DiceController &controller) {
+void newRoll(WINDOW *rollsWin, const int highlight, 
+        std::vector<std::string> &choices, DiceController &controller) {
     int y = highlight + 1;
     int x = 1;
     wmove(rollsWin, y, x);
@@ -634,10 +633,10 @@ void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices,
     }
     controller.addRoll(newRollName, newRollValue);
     curs_set(false);
-    choices->insert(choices->begin(), newRollName);
-    std::sort(choices->begin(), choices->end() - 2);
+    choices.insert(choices.begin(), newRollName);
+    std::sort(choices.begin(), choices.end() - 2);
     wclear(rollsWin);
-    wresize(rollsWin, choices->size() + 2, ROLL_TOTAL_MAX);
+    wresize(rollsWin, choices.size() + 2, ROLL_TOTAL_MAX);
 }
 
 /**
@@ -650,13 +649,13 @@ void newRoll(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices,
  * contains roll keys.
  * @param controller The controller which will delete the roll from the model.
  */
-void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> *choices,
-                DiceController &controller) {
-    controller.removeRoll(choices->at(highlight));
-    choices->erase(choices->begin() + highlight);
+void rollDelete(WINDOW *rollsWin, const int highlight, 
+        std::vector<std::string> &choices, DiceController &controller) {
+    controller.removeRoll(choices.at(highlight));
+    choices.erase(choices.begin() + highlight);
     wclear(rollsWin);
     wrefresh(rollsWin);
-    wresize(rollsWin, choices->size() + 2, ROLL_TOTAL_MAX);
+    wresize(rollsWin, choices.size() + 2, ROLL_TOTAL_MAX);
 }
 
 /*
@@ -670,7 +669,7 @@ void rollDelete(WINDOW *rollsWin, int highlight, std::vector<std::string> *choic
  * 
  * @return The length of n.
  */
-int getNumLength(int n) {
+int getNumLength(const int n) {
     if (n == 0) {
         return 0;
     } else {
@@ -691,8 +690,8 @@ int getNumLength(int n) {
  * @param originalX The x where the cursor should be returned afterward. 
  * @param msg The message which will be printed at problemY, problemX.
  */
-void indicateError(WINDOW *const &window, int problemY, int problemX, int originalY,
-                   int originalX, const char *msg) {
+void indicateError(WINDOW *window, const int problemY, const int problemX, 
+        const int originalY, const int originalX, const char *msg) {
     wmove(window, problemY, problemX);
     curs_set(0);
     wclrtoeol(window);

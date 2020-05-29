@@ -18,7 +18,7 @@ DiceController::DiceController() {
  * 
  * @return A pseudo-random int between 1 and dieType
  */
-int DiceController::getRoll(int dieType) {
+int DiceController::getRoll(const int dieType) {
     std::uniform_int_distribution<int> dist(1, dieType);
     return dist(twisterEngine);
 }
@@ -30,12 +30,12 @@ int DiceController::getRoll(int dieType) {
  * 
  * @param roll: string containing the roll collected from the user elsewhere
  * 
- * @return A new-allocated vector containing pairs of ints that describe the 
+ * @return A vector containing pairs of ints that describe the 
  * amount of and die type of rolls to be made.
  */
-std::vector<std::pair<int, int>> *DiceController::parseRoll(
-        const std::string &roll) {
-    auto *result = new std::vector<std::pair<int, int>>();
+std::vector<std::pair<int, int>> DiceController::parseRoll(
+        const std::string &roll) const {
+    std::vector<std::pair<int, int>> result;
     int num = 0;
     std::pair<int, int> pair {-1, -1};
     for (char c : roll) {
@@ -51,13 +51,13 @@ std::vector<std::pair<int, int>> *DiceController::parseRoll(
             }
             num = 0;
         } if (pair.first > 0 and pair.second > 0) {
-            result->emplace_back(pair);
+            result.emplace_back(pair);
             pair = {-1, -1};
         }
     }
     if (num > 0) {
         pair.second = num;
-        result->push_back(pair);
+        result.push_back(pair);
     }
     return result;
 }
@@ -67,44 +67,42 @@ std::vector<std::pair<int, int>> *DiceController::parseRoll(
  * 
  * @param rolls: a string of rolls to be logged to a file.
  */
-void DiceController::logRolls(const std::string& rolls) {
+void DiceController::logRolls(const std::string& rolls) const {
     time_t now = time(nullptr);
     std::string date = ctime(&now);
-    std::ofstream file;
-    file.open(logPath, std::ios_base::app);
-    file << date + rolls << std::endl;
-    file.close();
-    date.erase(0);
+    std::ofstream file(logPath, std::ios_base::app);
+    if (file.is_open()) {
+        file << date + rolls << std::endl;
+        file.close();
+    }
 }
 
 /**
  * Truncates the log file.
  */
-void DiceController::clearLog() {
-    std::ofstream file;
-    file.open(logPath, std::ofstream::out | std::ofstream::trunc);
+void DiceController::clearLog() const {
+    std::ofstream file(logPath, std::ofstream::out | std::ofstream::trunc);
     file.close();
 }
 
 /**
  * Given a string that looks something like "2d6 d12 4d10", this function returns
- * a new-allocated vector containing DiceRoller objects to be displayed by the
- * view.
+ * a vector containing DiceRoller objects to be displayed by the view.
  * Each DiceRoll object in the returned vector represents a roll, where a roll
  * is, for example, 2d6 using the above example. That example represents 3
  * different rolls, and the returned vector will be of size 3.
  *
  * @param roll The string containing the roll from user input.
  *
- * @return a new-allocated vector of DiceRoll objects.
+ * @return a vector of DiceRoll objects.
  */
-std::vector<DiceRoll> *DiceController::getAllRolls(const std::string &roll) {
+std::vector<DiceRoll> DiceController::getAllRolls(const std::string &roll) {
     std::string totalRoll;
     bool aces = model.isAcing();
-    auto *allRolls = new std::vector<DiceRoll>();
-    std::vector<std::pair<int, int>> *rollNums = parseRoll(roll);
+    auto allRolls = std::vector<DiceRoll>();
+    std::vector<std::pair<int, int>> rollNums = parseRoll(roll);
     int rollVal;
-    for (std::pair<int, int> &p : *rollNums) {
+    for (std::pair<int, int> &p : rollNums) {
         DiceRoll dr;
         dr.reps = dr.origReps = p.first;
         dr.dieType = p.second;
@@ -117,10 +115,9 @@ std::vector<DiceRoll> *DiceController::getAllRolls(const std::string &roll) {
             if (aces && rollVal == dr.dieType && dr.dieType != 1)
                 dr.reps++;
         }
-        allRolls->emplace_back(dr);
+        allRolls.emplace_back(dr);
         totalRoll += '\n';
     }
-    delete rollNums;
     logRolls(totalRoll);
     return allRolls;
 }
@@ -155,7 +152,7 @@ long DiceController::getDelay() const {
  *
  * @param delay The new value for delay.
  */
-void DiceController::setDelay(long delay) {
+void DiceController::setDelay(const long delay) {
     model.setDelay(delay);
 }
 
@@ -208,9 +205,9 @@ std::string DiceController::getSavedRoll(const std::string &key) {
 }
 
 /**
- * @return A new-allocated vector of all the saved roll names as strings
+ * @return A vector of all the saved roll names as strings
  */
-std::vector<std::string> *DiceController::getKeys() {
+std::vector<std::string> DiceController::getKeys() const {
     return model.getKeys();
 }
 
@@ -234,7 +231,7 @@ bool DiceController::savedRollExists(const std::string &key) {
  * @rerurn True if the roll is deemed valid, false otherwise.
  *
  */
-bool DiceController::isValidRollVal(const std::string &roll) {
+bool DiceController::isValidRollVal(const std::string &roll) const {
     return regex_match(roll, std::regex(ROLL_REGEX));
 }
 

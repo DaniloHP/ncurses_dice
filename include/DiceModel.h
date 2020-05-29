@@ -35,21 +35,20 @@ public:
 
     //functions
     DiceModel();
-    ~DiceModel();
     bool isAcing() const;
     void toggleAces();
     const std::string &getLogPath() const;
     long getDelay() const;
     void setDelay(long delay);
-    static bool configContainsKey(const std::string &key);
+    bool configContainsKey(const std::string &key) const;
     bool addLineToConfig(const std::string &key, const std::string &value,
                          const std::string &section);
     bool updateConfig(const std::string &key, const std::string &value,
                       const std::string &section);
     bool removeLineFromConfig(const std::string &key, const std::string &section);
     std::string getSavedRoll(const std::string &key);
-    std::vector<std::string> *getKeys();
-    int getNumRolls();
+    std::vector<std::string> getKeys() const;
+    int getNumRolls() const;
 
 private:
     //vars
@@ -62,10 +61,10 @@ private:
     std::map<std::string, std::string> savedRolls;
 
     //functions
-    static bool lineIsKey(const std::string &line, const std::string &key);
-    static void extractValue(std::string &line, int startAt);
-    static void extractKey(std::string &line);
-    void generateDefaultFile();
+    bool lineIsKey(const std::string &line, const std::string &key) const;
+    void extractValue(std::string &line, int startAt) const;
+    void extractKey(std::string &line) const;
+    void generateDefaultFile() const;
 };
 
 #endif

@@ -16,19 +16,19 @@
 class DiceController {
 public:
     DiceController();
-    void clearLog();
+    void clearLog() const;
     bool isAcing() const;
     void toggleAces();
-    std::vector<DiceRoll> *getAllRolls(const std::string &roll);
+    std::vector<DiceRoll> getAllRolls(const std::string &roll);
     long getDelay() const;
     void setDelay(long delay);
     bool addRoll(const std::string &key, const std::string &value);
     bool removeRoll(const std::string &key);
     bool updateRoll(const std::string &key, const std::string &newValue);
     std::string getSavedRoll(const std::string &key);
-    std::vector<std::string> *getKeys();
+    std::vector<std::string> getKeys() const;
     bool savedRollExists(const std::string &key);
-    static bool isValidRollVal(const std::string &roll);
+    bool isValidRollVal(const std::string &roll) const;
     bool isValidRollName(const std::string &key);
     int getNumRolls();
 
@@ -41,8 +41,8 @@ private:
 
     //functions
     int getRoll(int);
-    static std::vector<std::pair<int, int>> *parseRoll(const std::string &s);
-    void logRolls(const std::string& rolls);
+    std::vector<std::pair<int, int>> parseRoll(const std::string &s) const;
+    void logRolls(const std::string& rolls) const;
 
 };
 
