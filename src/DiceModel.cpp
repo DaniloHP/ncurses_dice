@@ -8,7 +8,7 @@
  * it should begin with.
  */
 DiceModel::DiceModel() {
-    std::string currSection, line;
+    std::string currSection, line, key, val;
     std::ifstream file(DEFAULT_CONFIG_PATH);
     //defaults, in case not found in the file
     aces = false;
@@ -19,22 +19,20 @@ DiceModel::DiceModel() {
             if (line.rfind('[', 0) == 0) {
                 currSection = line;
             } else if (lineIsKey(line, keyAces)) {
-                extractValue(line, keyAces.length());
-                aces = line != "0";
+                val = extractValue(line, keyAces.length());
+                aces = val != "0";
             } else if (lineIsKey(line, keyLogPath)) {
-                extractValue(line, keyLogPath.length());
-                logPath = line;
+                logPath = extractValue(line, keyLogPath.length());
             } else if (lineIsKey(line, keyDelay)) {
                 try {
-                    extractValue(line, keyDelay.length());
-                    delayMicroSeconds = std::stol(line);
+                    val = extractValue(line, keyDelay.length());
+                    delayMicroSeconds = std::stol(val);
                 } catch (std::invalid_argument &e) {/*It's already a default*/}
             } else if (currSection == sectionRolls) {
-                std::string value(line);
-                extractKey(line);
-                extractValue(value, 0);
-                if (!line.empty() && !value.empty()) {
-                    savedRolls.emplace(line, value);
+                key = extractKey(line);
+                val = extractValue(line, 0);
+                if (!key.empty() && !val.empty()) {
+                    savedRolls.emplace(key, val);
                 }
             }
         }
@@ -52,12 +50,12 @@ DiceModel::DiceModel() {
  * @param startAt Index at which to start searching for the ini key/value delimiter
  * '='.
  */
-void DiceModel::extractValue(std::string &line, int startAt) const {
+std::string DiceModel::extractValue(const std::string &line, int startAt) const {
     int index = line.find('=', startAt) + 1;
     if (index == std::string::npos) {
-        line = "";
+        return "";
     } else {
-        line = line.substr(index);
+        return line.substr(index);
     }
 }
 
@@ -67,12 +65,12 @@ void DiceModel::extractValue(std::string &line, int startAt) const {
  * @param line The line of config.ini to extract the key from, which is modified
  * in place and serves as a return parameter.
  */
-void DiceModel::extractKey(std::string &line) const{
+std::string DiceModel::extractKey(const std::string &line) const{
     int index = line.find('=');
     if (index == std::string::npos) {
-        line = "";
+        return "";
     } else {
-        line = line.substr(0, index);
+        return line.substr(0, index);
     }
 }
 
