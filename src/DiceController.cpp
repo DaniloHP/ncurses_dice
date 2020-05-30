@@ -232,7 +232,8 @@ bool DiceController::savedRollExists(const std::string &key) {
  *
  */
 bool DiceController::isValidRollVal(const std::string &roll) const {
-    return regex_match(roll, std::regex(ROLL_REGEX));
+    static const std::regex validator(std::regex(ROLL_REGEX));
+    return regex_match(roll, validator);
 }
 
 /**
