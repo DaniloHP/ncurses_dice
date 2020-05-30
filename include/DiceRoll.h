@@ -14,23 +14,16 @@ private:
     std::vector<int> rolls;
 
 public:
-    int dieType, reps, origReps;
-    unsigned long long int sum;
-
-    /**
-     * Initiates all members to 0.
-     */
-    DiceRoll() {
-        sum = dieType = reps = origReps = 0;
-    }
+    int dieType = 0;
+    int reps = 0;
+    int origReps = 0;
+    unsigned long long int sum = 0;
     
     /**
      * @return the number of reps minus the original number, or, the number of
      * extra rolls done as a result of aces.
      */
-    int getNumAces() const {
-        return reps - origReps;
-    }
+    int getNumAces() const noexcept { return reps - origReps; }
 
     /**
      * Returns the int at the given index

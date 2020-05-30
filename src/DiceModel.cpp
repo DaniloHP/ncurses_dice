@@ -292,7 +292,7 @@ bool DiceModel::lineIsKey(const std::string &line, const std::string &key) const
  */
 std::vector<std::string> DiceModel::getKeys() const {
     std::vector<std::string> keySet;
-    for(auto &kv : savedRolls) {
+    for(const auto &kv : savedRolls) {
         keySet.push_back(kv.first);
     }
     return keySet;

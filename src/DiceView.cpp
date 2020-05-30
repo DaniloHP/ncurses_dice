@@ -633,7 +633,7 @@ void newRoll(WINDOW *rollsWin, const int highlight,
     }
     controller.addRoll(newRollName, newRollValue);
     curs_set(false);
-    choices.insert(choices.begin(), newRollName);
+    choices.insert(choices.end() - 2, newRollName);
     std::sort(choices.begin(), choices.end() - 2);
     wclear(rollsWin);
     wresize(rollsWin, choices.size() + 2, ROLL_TOTAL_MAX);
