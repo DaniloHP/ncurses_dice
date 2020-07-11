@@ -9,11 +9,11 @@
  */
 DiceModel::DiceModel() {
     std::string currSection, line, key, val;
-    std::ifstream file(DEFAULT_CONFIG_PATH);
+    std::ifstream file(defaultConfigPath);
     //defaults, in case not found in the file
     aces = false;
-    logPath = DEFAULT_LOG_PATH;
-    delayMicroSeconds = DEFAULT_DELAY;
+    logPath = "RollHistory.txt";
+    delayMicroSeconds = 80000;
     if (file.is_open()) {
         while (getline(file, line)) {
             if (line.rfind('[', 0) == 0) {
@@ -28,7 +28,7 @@ DiceModel::DiceModel() {
                     val = extractValue(line, keyDelay.length());
                     delayMicroSeconds = std::stol(val);
                 } catch (std::invalid_argument &e) {/*It's already a default*/}
-            } else if (currSection == sectionRolls) {
+            } else if (currSection == "[rolls]") {
                 key = extractKey(line);
                 val = extractValue(line, 0);
                 if (!key.empty() && !val.empty()) {
@@ -38,7 +38,7 @@ DiceModel::DiceModel() {
         }
         file.close();
     } else {
-        generateDefaultFile();
+        generateDefaultFile(delayMicroSeconds);
     }
 }
 
@@ -50,7 +50,7 @@ DiceModel::DiceModel() {
  * @param startAt Index at which to start searching for the ini key/value delimiter
  * '='.
  */
-std::string DiceModel::extractValue(const std::string &line, int startAt) const {
+std::string_view DiceModel::extractValue(const std::string_view &line, int startAt) const {
     int index = line.find('=', startAt) + 1;
     if (index == std::string::npos) {
         return "";
@@ -65,7 +65,7 @@ std::string DiceModel::extractValue(const std::string &line, int startAt) const 
  * @param line The line of config.ini to extract the key from, which is modified
  * in place and serves as a return parameter.
  */
-std::string DiceModel::extractKey(const std::string &line) const{
+std::string_view DiceModel::extractKey(const std::string_view &line) const{
     int index = line.find('=');
     if (index == std::string::npos) {
         return "";
@@ -86,20 +86,20 @@ bool DiceModel::isAcing() const {
  */
 void DiceModel::toggleAces() {
     aces = !aces;
-    updateConfig(keyAces, aces ? "1" : "0", sectionSettings);
+    updateConfig(keyAces, aces ? "1" : "0", "[settings]");
 }
 
 /**
  * @return The path to roll log, which is stored in config.ini.
  */
-const std::string &DiceModel::getLogPath() const {
+const std::string &DiceModel::getLogPath() const noexcept {
     return logPath;
 }
 
 /**
  * @return The delay between rolls being displayed, in microseconds.
  */
-long DiceModel::getDelay() const {
+long DiceModel::getDelay() const noexcept {
     return delayMicroSeconds;
 }
 
@@ -110,7 +110,7 @@ long DiceModel::getDelay() const {
  */
 void DiceModel::setDelay(const long delay) {
     this->delayMicroSeconds = delay;
-    updateConfig(keyDelay, std::to_string(delay), sectionSettings);
+    updateConfig(keyDelay, std::to_string(delay), "[settings]");
 }
 
 /**
@@ -124,15 +124,15 @@ void DiceModel::setDelay(const long delay) {
  *
  * @return Whether or not the file operation was successful.
  */
-bool DiceModel::updateConfig(const std::string &key, const std::string &value,
-                        const std::string &section) {
-    if (section == sectionRolls) {
+bool DiceModel::updateConfig(const std::string &key, const std::string_view &value,
+                             const std::string_view &section) {
+    if (section == "[rolls]") {
         savedRolls[key] = value;
     }
     bool inTheRightSection = false, updated = false;
     std::string line;
-    std::fstream original(DEFAULT_CONFIG_PATH, std::ios::out | std::ios::in);
-    std::ofstream newFile(DEFAULT_TEMP_PATH, std::ios::out);
+    std::fstream original(defaultConfigPath, std::ios::out | std::ios::in);
+    std::ofstream newFile("temp", std::ios::out);
     if (original.is_open() && newFile.is_open()) {
         while (getline(original, line)) {
             if (line == section) {
@@ -150,10 +150,10 @@ bool DiceModel::updateConfig(const std::string &key, const std::string &value,
             }
         }
         if (updated) {
-            std::remove(DEFAULT_CONFIG_PATH);
-            std::rename(DEFAULT_TEMP_PATH, DEFAULT_CONFIG_PATH);
+            std::remove(defaultConfigPath.c_str());
+            std::rename("temp", defaultConfigPath.c_str());
         } else {
-            std::remove(DEFAULT_TEMP_PATH);
+            std::remove("temp");
         }
     }
     if (original.is_open()) original.close();
@@ -170,12 +170,12 @@ bool DiceModel::updateConfig(const std::string &key, const std::string &value,
  * @return Whether or not the file operation was successful.
  */
 bool DiceModel::removeLineFromConfig(const std::string &key,
-                                     const std::string &section) {
-    if (section == sectionRolls) savedRolls.erase(key);
+                                     const std::string_view &section) {
+    if (section == "[rolls]") savedRolls.erase(key);
     bool inTheRightSection = false, removed = false;
     std::string line;
-    std::fstream original(DEFAULT_CONFIG_PATH, std::ios::out | std::ios::in);
-    std::ofstream newFile(DEFAULT_TEMP_PATH, std::ios::out);
+    std::fstream original(defaultConfigPath, std::ios::out | std::ios::in);
+    std::ofstream newFile("temp", std::ios::out);
     if (original.is_open() && newFile.is_open()) {
         while (getline(original, line)) {
             if (line == section) {
@@ -192,10 +192,10 @@ bool DiceModel::removeLineFromConfig(const std::string &key,
             }
         }
         if (removed) {
-            std::remove(DEFAULT_CONFIG_PATH);
-            std::rename(DEFAULT_TEMP_PATH, DEFAULT_CONFIG_PATH);
+            std::remove(defaultConfigPath.c_str());
+            std::rename("temp", defaultConfigPath.c_str());
         } else {
-            std::remove(DEFAULT_TEMP_PATH);
+            std::remove("temp");
         }
     }
     if (original.is_open()) original.close();
@@ -212,13 +212,13 @@ bool DiceModel::removeLineFromConfig(const std::string &key,
  *
  * @return Whether or not the file operation was successful.
  */
-bool DiceModel::addLineToConfig(const std::string &key, const std::string &value,
-        const std::string &section) {
-    if (section == sectionRolls) savedRolls.emplace(key, value);
+bool DiceModel::addLineToConfig(const std::string_view &key, const std::string_view &value,
+        const std::string_view &section) {
+    if (section == "[rolls]") savedRolls.emplace(key, value);
     bool added = false;
     std::string line;
-    std::fstream original(DEFAULT_CONFIG_PATH, std::ios::out | std::ios::in);
-    std::ofstream newFile(DEFAULT_TEMP_PATH, std::ios::out);
+    std::fstream original(defaultConfigPath, std::ios::out | std::ios::in);
+    std::ofstream newFile("temp", std::ios::out);
     if (original.is_open() && newFile.is_open() && !configContainsKey(key)) {
         while (getline(original, line)) {
             newFile << line << std::endl;
@@ -227,8 +227,8 @@ bool DiceModel::addLineToConfig(const std::string &key, const std::string &value
                 added = true;
             }
         }
-        std::remove(DEFAULT_CONFIG_PATH);
-        std::rename(DEFAULT_TEMP_PATH, DEFAULT_CONFIG_PATH);
+        std::remove(defaultConfigPath.c_str());
+        std::rename("temp", defaultConfigPath.c_str());
     }
     if (original.is_open()) original.close();
     if (newFile.is_open()) newFile.close();
@@ -243,9 +243,9 @@ bool DiceModel::addLineToConfig(const std::string &key, const std::string &value
  * @return True if config.ini contains the key OR if it could not be opened for
  * some reason, false if the entire file was searched a the key was not found.
  */
-bool DiceModel::configContainsKey(const std::string &key) const {
+bool DiceModel::configContainsKey(const std::string_view &key) const {
     std::string line;
-    std::ifstream file(DEFAULT_CONFIG_PATH);
+    std::ifstream file(defaultConfigPath);
     if (file.is_open()) {
         while (getline(file, line)) {
             if (lineIsKey(line, key)) {
@@ -282,7 +282,7 @@ std::string DiceModel::getSavedRoll(const std::string &key) {
  *
  * @return True if the line's key matches key, false otherwise.
  */
-bool DiceModel::lineIsKey(const std::string &line, const std::string &key) const {
+bool DiceModel::lineIsKey(const std::string_view &line, const std::string_view &key) const {
     return line.length() > key.length() && line.rfind(key, 0) == 0 &&
            line[key.length()] == '=';
 }
@@ -301,14 +301,16 @@ std::vector<std::string> DiceModel::getKeys() const {
 /**
  * Generates a config.ini file with default values.
  */
-void DiceModel::generateDefaultFile() const {
-    std::ofstream file(DEFAULT_CONFIG_PATH);
-    file << sectionSettings << std::endl;
-    file << keyAces << '=' << '0' << std::endl;
-    file << keyDelay << '=' << DEFAULT_DELAY << std::endl;
-    file << keyLogPath << '=' << DEFAULT_LOG_PATH << std::endl;
-    file << sectionRolls << std::endl;
-    file.close();
+void DiceModel::generateDefaultFile(unsigned int delay) const {
+    std::ofstream file(defaultConfigPath);
+    if (file.is_open()) {
+        file << "[settings]" << std::endl;
+        file << keyAces << '=' << '0' << std::endl;
+        file << keyDelay << '=' << delay << std::endl;
+        file << keyLogPath << '=' << logPath << std::endl;
+        file << "[rolls]" << std::endl;
+        file.close();
+    }
 }
 
 /**

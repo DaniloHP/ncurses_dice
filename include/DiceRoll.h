@@ -23,7 +23,9 @@ public:
      * @return the number of reps minus the original number, or, the number of
      * extra rolls done as a result of aces.
      */
-    int getNumAces() const noexcept { return reps - origReps; }
+    [[nodiscard]] constexpr int getNumAces() const {
+        return reps - origReps;
+    }
 
     /**
      * Returns the int at the given index
@@ -32,7 +34,7 @@ public:
      *
      * @return The roll at the i or -1 if the index is out of bounds
      */
-    int getAt(int i) const  {
+    [[nodiscard]] int getAt(const int i) const {
         if (i < rolls.size() && i >= 0)
             return rolls.at(i);
         else
@@ -44,8 +46,8 @@ public:
      *
      * @param val The roll to add.
      */
-    void addRoll(int val) {
-        rolls.emplace_back(val);
+    void addRoll(const int val) {
+        rolls.push_back(val);
     }
 };
 

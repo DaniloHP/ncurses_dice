@@ -44,12 +44,15 @@ int  getNumLength(int n);
 void indicateError(WINDOW *window, int problemY, int problemX, int originalY,
               int originalX, const char *msg);
 
+static constexpr int rollValMax = 40; //max length of a roll value
+static constexpr int rollNameMax = 16; //max length of a roll's name
+static constexpr int rollTotalMax = rollValMax + rollNameMax;
 static int lastY = 11;
 
 int main() {
     WINDOW *whatDo = nullptr, *inputWin = nullptr, *mainScreen = initscr();
     DiceController controller;
-    char roll[ROLL_VAL_MAX];
+    char roll[rollValMax];
     int input, highlight;
     std::vector<DiceRoll> allRolls;
     const char *whatDoChoices[] = { "Roll again", "Reroll this roll",
@@ -251,18 +254,18 @@ void setupInputWin(WINDOW *&inWin, bool redo, char *roll,
     if (!redo) {
         echo();
         curs_set(1);
-        mvwgetnstr(inWin, 2, 1, roll, ROLL_VAL_MAX);
+        mvwgetnstr(inWin, 2, 1, roll, rollValMax);
         rollValue = controller.getSavedRoll(roll);
         while (!controller.isValidRollVal(roll) && rollValue.empty()) {
             indicateError(inWin, 1, 1, 2, 1, "Invalid roll format");
             mvwprintw(inWin, 1, 1, ROLL_PROMPT);
-            mvwgetnstr(inWin, 2, 1, roll, ROLL_VAL_MAX);
+            mvwgetnstr(inWin, 2, 1, roll, rollValMax);
             rollValue = controller.getSavedRoll(roll);
         }
         if (!rollValue.empty()) {
             redo = true;
-            int rollNameLen = strnlen(roll, ROLL_NAME_MAX);
-            strncpy(roll, rollValue.c_str(), ROLL_VAL_MAX);
+            int rollNameLen = strnlen(roll, rollNameMax);
+            strncpy(roll, rollValue.c_str(), rollValMax);
             mvwprintw(inWin, 2, rollNameLen + 2, "(%s)", roll);
             wrefresh(inWin);
         }
@@ -442,7 +445,7 @@ void handleSavedRolls(DiceController &controller) {
     choices.emplace_back("Exit saved rolls");
     highlight = input = 0;
     int numChoices = choices.size();
-    WINDOW* rollsWin = newwin(numChoices + 2, ROLL_TOTAL_MAX, lastY + 4, 46);
+    WINDOW* rollsWin = newwin(numChoices + 2, rollTotalMax, lastY + 4, 46);
     lastY += numChoices + 7;
     keypad(rollsWin, true);
     box(rollsWin, 0, 0);
@@ -452,7 +455,7 @@ void handleSavedRolls(DiceController &controller) {
         if (input == ENTER) {
             if (highlight == choices.size() - 1) break;
             else if (highlight < controller.getNumRolls()) { //selected a saved roll
-                WINDOW *optionsWin = newwin(1, ROLL_TOTAL_MAX, lastY - 1, 46);
+                WINDOW *optionsWin = newwin(1, rollTotalMax, lastY - 1, 46);
                 keypad(optionsWin, true);
                 const char *subChoices[] = { "<Rename>", "<Redefine>", 
                                              "<Delete>", "<Cancel>"};
@@ -544,14 +547,14 @@ void rollRename(WINDOW *optWin, const int highlight,
     wclear(optWin);
     echo();
     curs_set(true);
-    char newName[ROLL_NAME_MAX];
+    char newName[rollNameMax];
     mvwprintw(optWin, 0, 1, "Rename \"%s\" to: ", oldRollName.c_str());
-    mvwgetnstr(optWin, 0, 15 + oldRollName.length(), newName, ROLL_NAME_MAX);
+    mvwgetnstr(optWin, 0, 15 + oldRollName.length(), newName, rollNameMax);
     while (!controller.isValidRollName(newName)) {
         indicateError(optWin, 0, 1, 0, 1, "That name is taken or invalid");
         wclear(optWin);
         mvwprintw(optWin, 0, 1, "Rename \"%s\" to: ", oldRollName.c_str());
-        mvwgetnstr(optWin, 0, 15 + oldRollName.length(), newName, ROLL_NAME_MAX);
+        mvwgetnstr(optWin, 0, 15 + oldRollName.length(), newName, rollNameMax);
     }
     controller.removeRoll(oldRollName);
     controller.addRoll(newName, oldRollVal);
@@ -583,11 +586,11 @@ void rollRedefine(WINDOW *rollsWin, const int highlight, DiceController &control
     box(rollsWin, 0, 0);
     mvwprintw(rollsWin, y, 1, "%s:", rollName.c_str());
     wrefresh(rollsWin);
-    char newRoll[ROLL_VAL_MAX];
-    mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
+    char newRoll[rollValMax];
+    mvwgetnstr(rollsWin, y, x, newRoll, rollValMax);
     while (!controller.isValidRollVal(newRoll)) {
         indicateError(rollsWin, y, x, y, x, "Invalid roll format");
-        mvwgetnstr(rollsWin, y, x, newRoll, ROLL_VAL_MAX);
+        mvwgetnstr(rollsWin, y, x, newRoll, rollValMax);
     }
     controller.updateRoll(rollName, newRoll);
     curs_set(false);
@@ -614,29 +617,29 @@ void newRoll(WINDOW *rollsWin, const int highlight,
     box(rollsWin, 0, 0);
     echo();
     curs_set(true);
-    char newRollName[ROLL_NAME_MAX];
-    char newRollValue[ROLL_VAL_MAX];
-    mvwgetnstr(rollsWin, y, x, newRollName, ROLL_NAME_MAX);
+    char newRollName[rollNameMax];
+    char newRollValue[rollValMax];
+    mvwgetnstr(rollsWin, y, x, newRollName, rollNameMax);
     while (!controller.isValidRollName(newRollName)) {
         indicateError(rollsWin, y, 1, y, 1, "Bad roll name");
-        mvwgetnstr(rollsWin, y, x, newRollName, ROLL_NAME_MAX);
+        mvwgetnstr(rollsWin, y, x, newRollName, rollNameMax);
     }
-    int rollNameLen = strnlen(newRollName, ROLL_NAME_MAX);
+    int rollNameLen = strnlen(newRollName, rollNameMax);
     x += rollNameLen;
     mvwprintw(rollsWin, highlight + 1, x, ":");
-    mvwgetnstr(rollsWin, y, x + 2, newRollValue, ROLL_VAL_MAX);
-    while (!controller.isValidRollVal(newRollValue)) {
+    mvwgetnstr(rollsWin, y, x + 2, newRollValue, rollValMax);
+    while (!DiceController::isValidRollVal(newRollValue)) {
         indicateError(rollsWin, y, 1, y, 1, "Invalid roll format");
         mvwprintw(rollsWin, y, x - rollNameLen, "%s:", newRollName); //reprint name since ^ clears the line
         box(rollsWin, 0, 0);
-        mvwgetnstr(rollsWin, y, x + 2, newRollValue, ROLL_VAL_MAX);
+        mvwgetnstr(rollsWin, y, x + 2, newRollValue, rollValMax);
     }
     controller.addRoll(newRollName, newRollValue);
     curs_set(false);
     choices.insert(std::lower_bound(
         choices.begin(), choices.end() - 2, newRollName), newRollName);
     wclear(rollsWin);
-    wresize(rollsWin, choices.size() + 2, ROLL_TOTAL_MAX);
+    wresize(rollsWin, choices.size() + 2, rollTotalMax);
 }
 
 /**
@@ -655,7 +658,7 @@ void rollDelete(WINDOW *rollsWin, const int highlight,
     choices.erase(choices.begin() + highlight);
     wclear(rollsWin);
     wrefresh(rollsWin);
-    wresize(rollsWin, choices.size() + 2, ROLL_TOTAL_MAX);
+    wresize(rollsWin, choices.size() + 2, rollTotalMax);
 }
 
 /*

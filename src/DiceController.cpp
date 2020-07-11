@@ -7,8 +7,8 @@
  * initiates the Mersenne twister object and collects the log path from the model.
  */
 DiceController::DiceController() {
-    std::mt19937 mt(randomDevice());
-    this->twisterEngine = mt;
+    std::random_device randomDevice;
+    this->twisterEngine = std::mt19937(randomDevice());;
     logPath = model.getLogPath();
 }
 
@@ -18,7 +18,7 @@ DiceController::DiceController() {
  * 
  * @return A pseudo-random int between 1 and dieType
  */
-int DiceController::getRoll(const int dieType) {
+int DiceController::getRoll(const int dieType) noexcept {
     std::uniform_int_distribution<int> dist(1, dieType);
     return dist(twisterEngine);
 }
@@ -34,7 +34,7 @@ int DiceController::getRoll(const int dieType) {
  * amount of and die type of rolls to be made.
  */
 std::vector<std::pair<int, int>> DiceController::parseRoll(
-        const std::string &roll) const {
+        const std::string_view &roll) {
     std::vector<std::pair<int, int>> result;
     int num = 0;
     std::pair<int, int> pair {-1, -1};
@@ -67,7 +67,7 @@ std::vector<std::pair<int, int>> DiceController::parseRoll(
  * 
  * @param rolls: a string of rolls to be logged to a file.
  */
-void DiceController::logRolls(const std::string& rolls) const {
+void DiceController::logRolls(const std::string &rolls) const {
     time_t now = time(nullptr);
     std::string date = ctime(&now);
     std::ofstream file(logPath, std::ios_base::app);
@@ -82,7 +82,9 @@ void DiceController::logRolls(const std::string& rolls) const {
  */
 void DiceController::clearLog() const {
     std::ofstream file(logPath, std::ofstream::out | std::ofstream::trunc);
-    file.close();
+    if (file.is_open()) {
+        file.close();
+    }
 }
 
 /**
@@ -96,7 +98,7 @@ void DiceController::clearLog() const {
  *
  * @return a vector of DiceRoll objects.
  */
-std::vector<DiceRoll> DiceController::getAllRolls(const std::string &roll) {
+std::vector<DiceRoll> DiceController::getAllRolls(const std::string_view &roll) {
     std::string totalRoll;
     bool aces = model.isAcing();
     auto allRolls = std::vector<DiceRoll>();
@@ -165,8 +167,8 @@ void DiceController::setDelay(const long delay) {
  *
  * @return true if the value was changed in the model's map, false otherwise.
  */
-bool DiceController::updateRoll(const std::string &key, const std::string &newValue) {
-    return model.updateConfig(key, newValue, model.sectionRolls);
+bool DiceController::updateRoll(const std::string &key, const std::string_view &newValue) {
+    return model.updateConfig(key, newValue, "[rolls]");
 }
 
 /**
@@ -177,7 +179,7 @@ bool DiceController::updateRoll(const std::string &key, const std::string &newVa
  * @return true if the value was deleted in the model's map, false otherwise.
  */
 bool DiceController::removeRoll(const std::string &key) {
-    return model.removeLineFromConfig(key, model.sectionRolls);
+    return model.removeLineFromConfig(key, "[rolls]");
 }
 
 /**
@@ -189,8 +191,8 @@ bool DiceController::removeRoll(const std::string &key) {
  *
  * @return Whether or not the roll was able to be added.
  */
-bool DiceController::addRoll(const std::string &key, const std::string &value) {
-    return model.addLineToConfig(key, value, model.sectionRolls);
+bool DiceController::addRoll(const std::string_view &key, const std::string_view &value) {
+    return model.addLineToConfig(key, value, "[rolls]");
 }
 
 /**
@@ -223,18 +225,19 @@ bool DiceController::savedRollExists(const std::string &key) {
 }
 
 /**
- * Checks to see if a given roll value is valid by checking it against the regex
- * defined as a macro in this class's header.
+ * Checks to see if a given roll value is valid by checking it against a regex
  *
  * @param The roll to check for validity.
  *
  * @rerurn True if the roll is deemed valid, false otherwise.
  *
  */
-bool DiceController::isValidRollVal(const std::string &roll) const {
-    static const std::regex validator(std::regex(ROLL_REGEX));
-    return regex_match(roll, validator);
-}
+bool DiceController::isValidRollVal(const std::string_view &roll) {
+    static const std::regex validator(std::regex(
+            R"(((|[1-9]\d*)[dD]([1-9]\d*)(\s+|$))+)"
+            ));
+    return regex_match(roll.data(), validator);
+} //I know that the string here ^ will be null-terminated
 
 /**
  * Checks to see if the given roll name is valid by making sure a roll of the

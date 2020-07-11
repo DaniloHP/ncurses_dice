@@ -5,20 +5,6 @@
 #include <map>
 #include <vector>
 
-#ifdef DEBUG
-    #define DEFAULT_CONFIG_PATH "../config.ini"
-#else
-    #define DEFAULT_CONFIG_PATH "config.ini"
-#endif
-
-#define ROLL_VAL_MAX 40
-#define ROLL_NAME_MAX 16
-#define ROLL_TOTAL_MAX ((ROLL_VAL_MAX) + (ROLL_NAME_MAX))
-
-#define DEFAULT_LOG_PATH "RollHistory.txt"
-#define DEFAULT_TEMP_PATH "temp"
-#define DEFAULT_DELAY 80000
-
 /**
  * This class represents the program's state and enables the modification and
  * querying of that state. 
@@ -29,26 +15,22 @@
  */
 class DiceModel {
 public:
-    //vars
-    const std::string sectionSettings = "[settings]";
-    const std::string sectionRolls = "[rolls]";
-
     //functions
     DiceModel();
-    bool isAcing() const;
+    [[nodiscard]] bool isAcing() const;
     void toggleAces();
-    const std::string &getLogPath() const;
-    long getDelay() const;
+    [[nodiscard]] const std::string & getLogPath() const noexcept;
+    [[nodiscard]] long getDelay() const noexcept;
     void setDelay(long delay);
-    bool configContainsKey(const std::string &key) const;
-    bool addLineToConfig(const std::string &key, const std::string &value,
-                         const std::string &section);
-    bool updateConfig(const std::string &key, const std::string &value,
-                      const std::string &section);
-    bool removeLineFromConfig(const std::string &key, const std::string &section);
+    [[nodiscard]] bool configContainsKey(const std::string_view &key) const;
+    bool addLineToConfig(const std::string_view &key, const std::string_view &value,
+                         const std::string_view &section);
+    bool updateConfig(const std::string &key, const std::string_view &value,
+                      const std::string_view &section);
+    bool removeLineFromConfig(const std::string &key, const std::string_view &section);
     std::string getSavedRoll(const std::string &key);
-    std::vector<std::string> getKeys() const;
-    int getNumRolls() const;
+    [[nodiscard]] std::vector<std::string> getKeys() const;
+    [[nodiscard]] int getNumRolls() const;
 
 private:
     //vars
@@ -58,13 +40,15 @@ private:
     const std::string keyAces = "bAces";
     const std::string keyLogPath = "rollLogSavePath";
     const std::string keyDelay = "delayMicroSeconds";
+    const std::string defaultConfigPath = "config.ini";
     std::map<std::string, std::string> savedRolls;
 
+
     //functions
-    bool lineIsKey(const std::string &line, const std::string &key) const;
-    std::string extractValue(const std::string &line, int startAt) const;
-    std::string extractKey(const std::string &line) const;
-    void generateDefaultFile() const;
+    [[nodiscard]] bool lineIsKey(const std::string_view &line, const std::string_view &key) const;
+    [[nodiscard]] std::string_view extractValue(const std::string_view &line, int startAt) const;
+    [[nodiscard]] std::string_view extractKey(const std::string_view &line) const;
+    void generateDefaultFile(unsigned int delay) const;
 };
 
 #endif
