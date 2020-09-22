@@ -7,9 +7,11 @@ will appear in the project root directory the first time you roll. If you want i
 to be somewhere else, you can adjust that in config.ini under the key `rollLogSavePath`.
 
 This program makes heavy use of ncurses, a library for POSIX systems that 
-facilitates the creation of terminal-based user interfaces. Compatibility, then,
-is tricky for Windows, but I've run it with no problem on WSL Debian. Additionally, 
-I've tested it on Arch Linux and OpenSUSE Tumbleweed. 
+facilitates the creation of terminal-based user interfaces. Running this on
+Windows is tricky then. WSL Debian's CMake package is actually too old for C++17,
+so you will have to install a newer CMake manually for that particular
+flavor of WSL, and maybe others. If you can get it to build, this program runs
+without a problem on WSL.
 
 ## Build
 To get started, make sure you have `cmake` and `make` installed on your system. 
