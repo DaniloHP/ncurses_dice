@@ -89,7 +89,7 @@ void DiceController::clearLog() const {
 
 /**
  * Given a string that looks something like "2d6 d12 4d10", this function returns
- * a vector containing DiceRoller objects to be displayed by the view.
+ * a vector containing DiceRoll objects to be displayed by the view.
  * Each DiceRoll object in the returned vector represents a roll, where a roll
  * is, for example, 2d6 using the above example. That example represents 3
  * different rolls, and the returned vector will be of size 3.
